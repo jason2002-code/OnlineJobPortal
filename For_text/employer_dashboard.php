@@ -24,7 +24,7 @@ $employer = mysqli_fetch_assoc($result_employer);
 </head>
 <body>
     <div class="sidebar">
-        <h2>Employer Dasboard</h2>
+        <h2>Employer Dashboard</h2>
         <ul>
             <li class="active">Dashboard</li>
             <li>Recruitment</li>
