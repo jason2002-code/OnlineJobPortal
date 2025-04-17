@@ -16,26 +16,29 @@ $employer = mysqli_fetch_assoc($result_employer);
 ?>
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Employer Dashboard</title>
     <link rel="stylesheet" href="../For_design/empdash.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
 </head>
+
 <body>
     <div class="sidebar">
-        <h2>Employer Dashboard</h2>
+        <h2><i class="fas fa-briefcase"></i> Employer Dashboard</h2>
         <ul>
-            <li class="active">Dashboard</li>
-            <li>Recruitment</li>
-            <li>Interview</li>
-            <li>Onboarding</li>
-            <li>Interview Task</li>
-            <li>Appointments</li>
-            <li>Training</li>
+            <li><i class="fas fa-chart-line"></i> Dashboard</li>
+            <li><i class="fas fa-users"></i> Recruitment</li>
+            <li><i class="fas fa-comments"></i> Interview</li>
+            <li><i class="fas fa-user-plus"></i> Onboarding</li>
+            <li><i class="fas fa-tasks"></i> Interview Task</li>
+            <li><i class="fas fa-calendar-check"></i> Appointments</li>
+            <li><i class="fas fa-chalkboard-teacher"></i> Training</li>
         </ul>
         <form action="logout.php" method="post">
-            <button class="logout">Logout</button>
+            <button class="logout"><i class="fas fa-sign-out-alt"></i> Logout</button>
         </form>
     </div>
 
@@ -44,9 +47,52 @@ $employer = mysqli_fetch_assoc($result_employer);
             <input type="text" placeholder="Search something...">
             <button class="add-new">Add New</button>
         </header>
+        <div class="job-modal" id="jobModal">
+    <div class="job-modal-content">
+        <span class="close-btn" id="closeJobModal">&times;</span>
+        <h3><i class="fas fa-briefcase"></i> Post a New Job</h3>
+
+        <form id="jobForm" action="post_job.php" method="POST">
+            <input type="hidden" name="employerID" value="<?php echo htmlspecialchars($employer['employerID']); ?>">
+
+            <label for="jobTitle"><i class="fas fa-heading"></i> Job Title</label>
+            <input type="text" id="jobTitle" name="jobTitle" placeholder="e.g. Frontend Developer" required>
+
+            <label for="description"><i class="fas fa-align-left"></i> Job Description</label>
+            <textarea id="description" name="description" rows="4" placeholder="Describe the role in detail..." required></textarea>
+
+            <label for="salary"><i class="fas fa-dollar-sign"></i> Salary</label>
+            <input type="text" id="salary" name="salary" placeholder="e.g. $60,000 - $80,000" pattern="^\$\d{1,3}(,\d{3})*(\s*-\s*\$\d{1,3}(,\d{3})*)?$" required>
+
+            <label for="benefits"><i class="fas fa-gift"></i> Benefits</label>
+            <textarea id="benefits" name="benefits" rows="2" placeholder="e.g. Health insurance, Paid leave" required></textarea>
+
+            <label for="schedule"><i class="fas fa-calendar-alt"></i> Schedule</label>
+            <textarea id="schedule" name="schedule" rows="2" placeholder="e.g. Full-time, Mon–Fri" required></textarea>
+
+            <label for="requirements"><i class="fas fa-check-circle"></i> Requirements</label>
+            <textarea id="requirements" name="requirements" rows="3" placeholder="Minimum qualifications..." required></textarea>
+
+            <label for="skills"><i class="fas fa-tools"></i> Skills</label>
+            <textarea id="skills" name="skills" rows="3" placeholder="e.g. React, Problem-solving" required></textarea>
+
+            <label for="posted_date"><i class="fas fa-calendar-day"></i> Posted Date</label>
+            <input type="date" id="posted_date" name="posted_date" required>
+
+            <label for="status"><i class="fas fa-toggle-on"></i> Status</label>
+            <select id="status" name="status" required>
+                <option value="">-- Select Status --</option>
+                <option value="Open">Open</option>
+                <option value="Closed">Closed</option>
+            </select>
+
+            <button type="submit" class="submit-job"><i class="fas fa-paper-plane"></i> Post Job</button>
+        </form>
+    </div>
+</div>
 
         <section class="welcome">
-            <h3>Good Morning <?php echo 'Sara'; ?></h3>
+            <h3>Good Morning <?php echo htmlspecialchars($employer['Emp_email']); ?></h3>
             <p>You have 75+ new applications. A lot of work for today!</p>
             <button>Explore</button>
         </section>
@@ -60,6 +106,8 @@ $employer = mysqli_fetch_assoc($result_employer);
                     echo "<div class='card'>$role</div>";
                 }
                 ?>
+
+
             </div>
         </section>
 
@@ -92,7 +140,7 @@ $employer = mysqli_fetch_assoc($result_employer);
 
     <div class="sidebar-right">
         <div class="profile">
-            <p><?php echo 'Sara Abraham'; ?></p>
+            <p><?php echo htmlspecialchars($employer['Emp_email']); ?></p>
         </div>
         <div class="calendar">
             <h4>Schedule Calendar</h4>
@@ -123,5 +171,7 @@ $employer = mysqli_fetch_assoc($result_employer);
     </div>
 
     <script src="script.js"></script>
+    <script src="../For_design/dashboard.js"></script>
 </body>
+
 </html>
