@@ -26,6 +26,19 @@ $employer = mysqli_fetch_assoc($result_employer);
 </head>
 
 <body>
+    <?php
+    if (session_status() == PHP_SESSION_NONE) {
+        session_start();
+    }
+    if (isset($_SESSION['success'])) {
+        echo '<div class="alert success">' . htmlspecialchars($_SESSION['success']) . '</div>';
+        unset($_SESSION['success']);
+    }
+    if (isset($_SESSION['error'])) {
+        echo '<div class="alert error">' . htmlspecialchars($_SESSION['error']) . '</div>';
+        unset($_SESSION['error']);
+    }
+    ?>
     <div class="sidebar">
         <h2><i class="fas fa-briefcase"></i> Employer Dashboard</h2>
         <ul>
@@ -48,48 +61,60 @@ $employer = mysqli_fetch_assoc($result_employer);
             <button class="add-new">Add New</button>
         </header>
         <div class="job-modal" id="jobModal">
-    <div class="job-modal-content">
-        <span class="close-btn" id="closeJobModal">&times;</span>
-        <h3><i class="fas fa-briefcase"></i> Post a New Job</h3>
+            <div class="job-modal-content">
+                <span class="close-btn" id="closeJobModal">&times;</span>
+                <h3><i class="fas fa-briefcase"></i> Post a New Job</h3>
 
-        <form id="jobForm" action="post_job.php" method="POST">
-            <input type="hidden" name="employerID" value="<?php echo htmlspecialchars($employer['employerID']); ?>">
+                <form id="jobForm" action="post_job.php" method="POST" enctype="multipart/form-data">
+                    <input type="hidden" name="employerID" value="<?php echo htmlspecialchars($employer['employerID']); ?>">
 
-            <label for="jobTitle"><i class="fas fa-heading"></i> Job Title</label>
-            <input type="text" id="jobTitle" name="jobTitle" placeholder="e.g. Frontend Developer" required>
+                    <label for="jobTitle"><i class="fas fa-heading"></i> Job Title</label>
+                    <input type="text" id="jobTitle" name="jobTitle" placeholder="e.g. Frontend Developer" required>
 
-            <label for="description"><i class="fas fa-align-left"></i> Job Description</label>
-            <textarea id="description" name="description" rows="4" placeholder="Describe the role in detail..." required></textarea>
+                    <label for="description"><i class="fas fa-align-left"></i> Job Description</label>
+                    <textarea id="description" name="description" rows="4" placeholder="Describe the role in detail..." required></textarea>
 
-            <label for="salary"><i class="fas fa-dollar-sign"></i> Salary</label>
-            <input type="text" id="salary" name="salary" placeholder="e.g. $60,000 - $80,000" pattern="^\$\d{1,3}(,\d{3})*(\s*-\s*\$\d{1,3}(,\d{3})*)?$" required>
+                    <label for="salary"><i class="fas fa-dollar-sign"></i> Salary</label>
+                    <input type="text" id="salary" name="salary" placeholder="e.g. $60,000 - $80,000" pattern="^\$\d{1,3}(,\d{3})*(\s*-\s*\$\d{1,3}(,\d{3})*)?$" required>
 
-            <label for="benefits"><i class="fas fa-gift"></i> Benefits</label>
-            <textarea id="benefits" name="benefits" rows="2" placeholder="e.g. Health insurance, Paid leave" required></textarea>
+                    <label for="benefits"><i class="fas fa-gift"></i> Benefits</label>
+                    <textarea id="benefits" name="benefits" rows="2" placeholder="e.g. Health insurance, Paid leave" required></textarea>
 
-            <label for="schedule"><i class="fas fa-calendar-alt"></i> Schedule</label>
-            <textarea id="schedule" name="schedule" rows="2" placeholder="e.g. Full-time, Mon–Fri" required></textarea>
+                    <label for="schedule"><i class="fas fa-calendar-alt"></i> Schedule</label>
+                    <textarea id="schedule" name="schedule" rows="2" placeholder="e.g. Full-time, Mon–Fri" required></textarea>
 
-            <label for="requirements"><i class="fas fa-check-circle"></i> Requirements</label>
-            <textarea id="requirements" name="requirements" rows="3" placeholder="Minimum qualifications..." required></textarea>
+                    <label for="requirements"><i class="fas fa-check-circle"></i> Requirements</label>
+                    <textarea id="requirements" name="requirements" rows="3" placeholder="Minimum qualifications..." required></textarea>
 
-            <label for="skills"><i class="fas fa-tools"></i> Skills</label>
-            <textarea id="skills" name="skills" rows="3" placeholder="e.g. React, Problem-solving" required></textarea>
+                    <label for="skills"><i class="fas fa-tools"></i> Skills</label>
+                    <textarea id="skills" name="skills" rows="3" placeholder="e.g. React, Problem-solving" required></textarea>
 
-            <label for="posted_date"><i class="fas fa-calendar-day"></i> Posted Date</label>
-            <input type="date" id="posted_date" name="posted_date" required>
+                    <label for="experience"><i class="fa-solid fa-user-check"></i> Experience</label>
+                    <textarea id="experience" name="experience" rows="4" placeholder="e.g. 1 - 2 years," required></textarea>
 
-            <label for="status"><i class="fas fa-toggle-on"></i> Status</label>
-            <select id="status" name="status" required>
-                <option value="">-- Select Status --</option>
-                <option value="Open">Open</option>
-                <option value="Closed">Closed</option>
-            </select>
+                    <label for="photo"><i class="fas fa-image"></i> Upload Photo</label>
+                    <input type="file" id="photo" name="photo" accept="image/*">
 
-            <button type="submit" class="submit-job"><i class="fas fa-paper-plane"></i> Post Job</button>
-        </form>
-    </div>
-</div>
+                    <label for="location"><i class="fas fa-map-marker-alt"></i> Location</label>
+                    <input type="text" id="location" name="location" placeholder="e.g. New York, Remote" required>
+
+                    <label for="education"><i class="fas fa-graduation-cap"></i> Education</label>
+                    <input type="text" id="education" name="education" placeholder="e.g. Bachelor's Degree" required>
+
+                    <label for="posted_date"><i class="fas fa-calendar-day"></i> Posted Date</label>
+                    <input type="date" id="posted_date" name="posted_date" required>
+
+                    <label for="status"><i class="fas fa-toggle-on"></i> Status</label>
+                    <select id="status" name="status" required>
+                        <option value="">-- Select Status --</option>
+                        <option value="Open">Open</option>
+                        <option value="Closed">Closed</option>
+                    </select>
+
+                    <button type="submit" class="submit-job"><i class="fas fa-paper-plane"></i> Post Job</button>
+                </form>
+            </div>
+        </div>
 
         <section class="welcome">
             <h3>Good Morning <?php echo htmlspecialchars($employer['Emp_email']); ?></h3>

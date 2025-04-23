@@ -1,3 +1,6 @@
+<?php
+include("../Functions/db_connection.php");
+?>
 
 
 <!DOCTYPE html>
@@ -99,140 +102,39 @@
     <h1 class="heading">Latest Jobs</h1>
     <div class="box-container">
         <!-- IT Infosys Co. -->
-        <div class="box">
-            <div class="company">
-                <img src="https://cdn-icons-png.freepik.com/256/3291/3291670.png" alt="">
-                <div>
-                    <h3>IT Infosys Co.</h3>
-                    <p>2 days ago</p>
-                </div>
-            </div>
-            <h3 class="job-title">Senior Web Developer</h3>
-            <p class="location"><i class="fas fa-map-marker-alt"></i> <span>Tagbilaran, Philippines</span></p>
-            <div class="tags">
-                <p><i class="fas fa-solid fa-peso-sign"></i><span>10k - 25k</span></p>
-                <p><i class="fas fa-briefcase"></i><span>Part-time</span></p>
-                <p><i class="fas fa-clock"></i><span>Day shift</span></p>
-            </div>
-            <div class="flex-btn">
-                <a href="view_job.php" class="btn">View Details</a>
-                <button type="submit" class="far fa-heart" name="save"></button>
+        <?php
+$sql = "SELECT * FROM joblist ORDER BY posted_date DESC LIMIT 6";
+$result = $conn->query($sql);
+
+if ($result->num_rows > 0):
+    while ($row = $result->fetch_assoc()):
+?>
+    <div class="box">
+        <div class="company">
+            <img src="https://cdn-icons-png.freepik.com/256/3291/3291670.png" alt="">
+            <div>
+                <h3>Company Name</h3>
+                <p><?= date('F j, Y', strtotime($row['posted_date'])) ?></p>
             </div>
         </div>
-
-        <!-- Tech Solutions Inc. -->
-        <div class="box">
-            <div class="company">
-                <img src="https://cdn-icons-png.freepik.com/256/5968/5968672.png" alt="">
-                <div>
-                    <h3>Tech Solutions Inc.</h3>
-                    <p>1 day ago</p>
-                </div>
-            </div>
-            <h3 class="job-title">Junior PHP Developer</h3>
-            <p class="location"><i class="fas fa-map-marker-alt"></i> <span>Cebu, Philippines</span></p>
-            <div class="tags">
-                <p><i class="fas fa-solid fa-peso-sign"></i><span>15k - 20k</span></p>
-                <p><i class="fas fa-briefcase"></i><span>Full-time</span></p>
-                <p><i class="fas fa-clock"></i><span>Flexible shift</span></p>
-            </div>
-            <div class="flex-btn">
-                <a href="view_job.php" class="btn">View Details</a>
-                <button type="submit" class="far fa-heart" name="save"></button>
-            </div>
+        <h3 class="job-title"><?= htmlspecialchars($row['jobTitle']) ?></h3>
+        <p class="location"><i class="fas fa-map-marker-alt"></i> <span><?= htmlspecialchars($row['location']) ?></span></p>
+        <div class="tags">
+            <p><i class="fas fa-solid fa-peso-sign"></i><span><?= htmlspecialchars($row['Salary']) ?></span></p>
+            <p><i class="fas fa-briefcase"></i><span><?= htmlspecialchars($row['status']) ?></span></p>
+            <p><i class="fas fa-clock"></i><span><?= htmlspecialchars($row['Schedule']) ?></span></p>
         </div>
-
-        <!-- Digital Creations -->
-        <div class="box">
-            <div class="company">
-                <img src="https://cdn-icons-png.freepik.com/256/732/732190.png" alt="">
-                <div>
-                    <h3>Digital Creations</h3>
-                    <p>3 days ago</p>
-                </div>
-            </div>
-            <h3 class="job-title">Graphic Designer</h3>
-            <p class="location"><i class="fas fa-map-marker-alt"></i> <span>Manila, Philippines</span></p>
-            <div class="tags">
-                <p><i class="fas fa-solid fa-peso-sign"></i><span>12k - 18k</span></p>
-                <p><i class="fas fa-briefcase"></i><span>Contract</span></p>
-                <p><i class="fas fa-clock"></i><span>Day shift</span></p>
-            </div>
-            <div class="flex-btn">
-                <a href="view_job.php" class="btn">View Details</a>
-                <button type="submit" class="far fa-heart" name="save"></button>
-            </div>
-        </div>
-
-        <!-- Data Systems -->
-        <div class="box">
-            <div class="company">
-                <img src="https://cdn-icons-png.freepik.com/256/753/753244.png" alt="">
-                <div>
-                    <h3>Data Systems</h3>
-                    <p>5 days ago</p>
-                </div>
-            </div>
-            <h3 class="job-title">Database Administrator</h3>
-            <p class="location"><i class="fas fa-map-marker-alt"></i> <span>Davao, Philippines</span></p>
-            <div class="tags">
-                <p><i class="fas fa-solid fa-peso-sign"></i><span>20k - 30k</span></p>
-                <p><i class="fas fa-briefcase"></i><span>Full-time</span></p>
-                <p><i class="fas fa-clock"></i><span>Night shift</span></p>
-            </div>
-            <div class="flex-btn">
-                <a href="view_job.php" class="btn">View Details</a>
-                <button type="submit" class="far fa-heart" name="save"></button>
-            </div>
-        </div>
-
-        <!-- Web Masters -->
-        <div class="box">
-            <div class="company">
-                <img src="https://cdn-icons-png.freepik.com/256/919/919836.png" alt="">
-                <div>
-                    <h3>Web Masters</h3>
-                    <p>1 week ago</p>
-                </div>
-            </div>
-            <h3 class="job-title">Frontend Developer</h3>
-            <p class="location"><i class="fas fa-map-marker-alt"></i> <span>Bacolod, Philippines</span></p>
-            <div class="tags">
-                <p><i class="fas fa-solid fa-peso-sign"></i><span>18k - 25k</span></p>
-                <p><i class="fas fa-briefcase"></i><span>Part-time</span></p>
-                <p><i class="fas fa-clock"></i><span>Flexible shift</span></p>
-            </div>
-            <div class="flex-btn">
-                <a href="view_job.php" class="btn">View Details</a>
-                <button type="submit" class="far fa-heart" name="save"></button>
-            </div>
-        </div>
-
-        <!-- Cloud Innovations -->
-        <div class="box">
-            <div class="company">
-                <img src="https://cdn-icons-png.freepik.com/256/2103/2103633.png" alt="">
-                <div>
-                    <h3>Cloud Innovations</h3>
-                    <p>3 days ago</p>
-                </div>
-            </div>
-            <h3 class="job-title">DevOps Engineer</h3>
-            <p class="location"><i class="fas fa-map-marker-alt"></i> <span>Iloilo, Philippines</span></p>
-            <div class="tags">
-                <p><i class="fas fa-solid fa-peso-sign"></i><span>25k - 35k</span></p>
-                <p><i class="fas fa-briefcase"></i><span>Full-time</span></p>
-                <p><i class="fas fa-clock"></i><span>Day shift</span></p>
-            </div>
-            <div class="flex-btn">
-                <a href="view_job.php" class="btn">View Details</a>
-                <button type="submit" class="far fa-heart" name="save"></button>
-            </div>
+        <div class="flex-btn">
+            <a href="view_job.php?jobID=<?= $row['jobID'] ?>" class="btn">View Details</a>
+            <button type="submit" class="far fa-heart" name="save"></button>
         </div>
     </div>
-    <div style="text-align: center; margin-top: 2rem;">
-        <a href="jobs.php" class="btn">View All</a>
-    </div>
+<?php
+    endwhile;
+else:
+    echo "<p style='text-align:center;'>No job postings found.</p>";
+endif;
+?>
 </section>
 
 <footer class="footer">

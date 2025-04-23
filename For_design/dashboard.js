@@ -37,19 +37,19 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 // Modal open/close
-document.querySelector('.add-new').addEventListener('click', () => {
-    document.getElementById('jobModal').style.display = 'block';
-});
+//document.querySelector('.add-new').addEventListener('click', () => {
+   // document.getElementById('jobModal').style.display = 'block';
+//});
 
-document.getElementById('closeJobModal').addEventListener('click', () => {
-    document.getElementById('jobModal').style.display = 'none';
-});
+//document.getElementById('closeJobModal').addEventListener('click', () => {
+    //document.getElementById('jobModal').style.display = 'none';
+//});
 
 // Optional: Reset form after submission (if staying on the same page)
-document.getElementById('jobForm').addEventListener('submit', function (e) {
-    setTimeout(() => {
+//document.getElementById('jobForm').addEventListener('submit', function (e) {
+   // setTimeout(() => {
         this.reset();
-        document.getElementById('jobModal').style.display = 'none';
-    }, 300); // Delay to let PHP process
-});
+       // document.getElementById('jobModal').style.display = 'none';
+   // }, 300); // Delay to let PHP process
+//});
 
