@@ -23,6 +23,7 @@ $employer = mysqli_fetch_assoc($result_employer);
     <title>Employer Dashboard</title>
     <link rel="stylesheet" href="../For_design/empdash.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 </head>
 
 <body>
@@ -196,7 +197,7 @@ $employer = mysqli_fetch_assoc($result_employer);
     </div>
 
     <script src="script.js"></script>
-    <script src="../For_design/dashboard.js"></script>
+    <script src="../For_design/jv/dashboard.js"></script>
 </body>
 
 </html>

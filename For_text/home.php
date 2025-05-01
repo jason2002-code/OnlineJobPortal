@@ -101,40 +101,43 @@ include("../Functions/db_connection.php");
 <section class="jobs-container">
     <h1 class="heading">Latest Jobs</h1>
     <div class="box-container">
-        <!-- IT Infosys Co. -->
         <?php
-$sql = "SELECT * FROM joblist ORDER BY posted_date DESC LIMIT 6";
-$result = $conn->query($sql);
+        $sql = "SELECT * FROM joblist ORDER BY posted_date DESC LIMIT 6";
+        $result = $conn->query($sql);
 
-if ($result->num_rows > 0):
-    while ($row = $result->fetch_assoc()):
-?>
-    <div class="box">
-        <div class="company">
-            <img src="https://cdn-icons-png.freepik.com/256/3291/3291670.png" alt="">
-            <div>
-                <h3>Company Name</h3>
-                <p><?= date('F j, Y', strtotime($row['posted_date'])) ?></p>
+        if ($result->num_rows > 0):
+            while ($row = $result->fetch_assoc()):
+$imagePath = !empty($row['Photo']) ? 
+    ('uploads/' . basename($row['Photo'])) : 
+    '../images/default-job.png';
+        ?>
+        <div class="box">
+            <div class="company">
+            <img src="<?php echo htmlspecialchars($row['Photo']); ?>" alt="Job Image">
+                <div>
+                    <h3><?= htmlspecialchars($row['companyName'] ?? 'Company') ?></h3>
+                    <p><?= date('F j, Y', strtotime($row['posted_date'])) ?></p>
+                </div>
+            </div>
+            <h3 class="job-title"><?= htmlspecialchars($row['jobTitle']) ?></h3>
+            <p class="location"><i class="fas fa-map-marker-alt"></i> <span><?= htmlspecialchars($row['location']) ?></span></p>
+            <div class="tags">
+                <p><i class="fas fa-solid fa-peso-sign"></i><span><?= htmlspecialchars($row['Salary']) ?></span></p>
+                <p><i class="fas fa-briefcase"></i><span><?= htmlspecialchars($row['status']) ?></span></p>
+                <p><i class="fas fa-clock"></i><span><?= htmlspecialchars($row['Schedule']) ?></span></p>
+            </div>
+            <div class="flex-btn">
+                <a href="view_job.php?jobID=<?= $row['jobID'] ?>" class="btn">View Details</a>
+                <button type="submit" class="far fa-heart" name="save"></button>
             </div>
         </div>
-        <h3 class="job-title"><?= htmlspecialchars($row['jobTitle']) ?></h3>
-        <p class="location"><i class="fas fa-map-marker-alt"></i> <span><?= htmlspecialchars($row['location']) ?></span></p>
-        <div class="tags">
-            <p><i class="fas fa-solid fa-peso-sign"></i><span><?= htmlspecialchars($row['Salary']) ?></span></p>
-            <p><i class="fas fa-briefcase"></i><span><?= htmlspecialchars($row['status']) ?></span></p>
-            <p><i class="fas fa-clock"></i><span><?= htmlspecialchars($row['Schedule']) ?></span></p>
-        </div>
-        <div class="flex-btn">
-            <a href="view_job.php?jobID=<?= $row['jobID'] ?>" class="btn">View Details</a>
-            <button type="submit" class="far fa-heart" name="save"></button>
-        </div>
+        <?php
+            endwhile;
+        else:
+            echo "<p style='text-align:center;'>No job postings found.</p>";
+        endif;
+        ?>
     </div>
-<?php
-    endwhile;
-else:
-    echo "<p style='text-align:center;'>No job postings found.</p>";
-endif;
-?>
 </section>
 
 <footer class="footer">
