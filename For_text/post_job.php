@@ -8,9 +8,35 @@ if (!isset($_SESSION['employerID'])) {
     exit();
 }
 
+$employerID = $_SESSION['employerID'];
+$jobID = isset($_GET['jobID']) ? intval($_GET['jobID']) : 0;
+
+if ($jobID === 0) {
+    $_SESSION['error'] = "Invalid job ID";
+    header("Location: employer_dashboard.php");
+    exit();
+}
+
+// Fetch job details
+$stmt = $conn->prepare("SELECT * FROM joblist WHERE jobID = ? AND employerID = ?");
+if ($stmt === false) {
+    die('Prepare failed: ' . htmlspecialchars($conn->error));
+}
+$stmt->bind_param("ii", $jobID, $employerID);
+$stmt->execute();
+$result = $stmt->get_result();
+
+if ($result && $result->num_rows === 1) {
+    $job = $result->fetch_assoc();
+} else {
+    $_SESSION['error'] = "Job not found or you don't have permission to edit this job";
+    header("Location: employer_dashboard.php");
+    exit();
+}
+$stmt->close();
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Get and sanitize POST data
-    $employerID = $_SESSION['employerID'];
     $jobTitle = trim($_POST['jobTitle']);
     $description = trim($_POST['description']);
     $salary = trim($_POST['salary']);
@@ -20,119 +46,237 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $skills = trim($_POST['skills']);
     $posted_date = $_POST['posted_date'];
     $status = $_POST['status'];
-    $experience = $_POST['experience'];
-   
-
+    $location = trim($_POST['location']);
+    $education = trim($_POST['education']);
+    $experience = trim($_POST['experience']);
 
     // Basic validation
-    if (empty($jobTitle) || empty($description) ||
-        empty($salary) || empty($benefits) || empty($schedule) || 
-        empty($requirements) || empty($skills) || empty($_POST['location']) || 
-        empty($_POST['education']) || empty($posted_date) || empty($status) || empty($experience)) {
-       
-            $_SESSION['error'] = "Please fill in all required fields.";
-        header("Location: employer_dashboard.php");
+    if (empty($jobTitle) || empty($description) || empty($salary) || 
+        empty($benefits) || empty($schedule) || empty($requirements) || 
+        empty($skills) || empty($location) || empty($education) || 
+        empty($posted_date) || empty($status) || empty($experience)) {
+        
+        $_SESSION['error'] = "Please fill in all required fields";
+        header("Location: edit_job.php?jobID=$jobID");
         exit();
     }
 
-    $location = trim($_POST['location']);
-    $education = trim($_POST['education']);
+    // Photo upload handling
+    $photoPath = $job['Photo']; // Keep existing photo if no new one uploaded
 
+    if (isset($_FILES['photo']) && $_FILES['photo']['error'] == UPLOAD_ERR_OK) {
+        $uploadDir = 'uploads/';
+        
+        // Verify directory exists and is writable
+        if (!file_exists($uploadDir)) {
+            if (!mkdir($uploadDir, 0755, true)) {
+                $_SESSION['error'] = "Failed to create upload directory";
+                header("Location: edit_job.php?jobID=$jobID");
+                exit();
+            }
+        }
+        
+        if (!is_writable($uploadDir)) {
+            $_SESSION['error'] = "Upload directory is not writable";
+            header("Location: edit_job.php?jobID=$jobID");
+            exit();
+        }
 
-   // Photo upload handling
-$photoPath = null;
+        // Secure filename and create unique name
+        $filename = preg_replace("/[^a-zA-Z0-9\._-]/", "", $_FILES["photo"]["name"]);
+        $targetFile = $uploadDir . uniqid() . "_" . $filename;
 
-if (isset($_FILES['photo']) && $_FILES['photo']['error'] == UPLOAD_ERR_OK) {
-    $uploadDir = 'uploads/';
-    
-    // Verify directory exists and is writable
-    if (!file_exists($uploadDir)) {
-        if (!mkdir($uploadDir, 0755, true)) {
-            $_SESSION['error'] = "Failed to create upload directory.";
-            header("Location: employer_dashboard.php");
+        // Validate file type using MIME
+        $allowedTypes = ['image/jpeg', 'image/png', 'image/gif'];
+        $finfo = finfo_open(FILEINFO_MIME_TYPE);
+        $mime = finfo_file($finfo, $_FILES['photo']['tmp_name']);
+        finfo_close($finfo);
+        
+        if (!in_array($mime, $allowedTypes)) {
+            $_SESSION['error'] = "Invalid file type. Only JPEG, PNG, GIF allowed";
+            header("Location: edit_job.php?jobID=$jobID");
+            exit();
+        }
+
+        // Move uploaded file
+        if (move_uploaded_file($_FILES["photo"]["tmp_name"], $targetFile)) {
+            // Delete old photo if it exists
+            if (!empty($photoPath) && file_exists($photoPath)) {
+                unlink($photoPath);
+            }
+            $photoPath = $targetFile;
+        } else {
+            error_log("Move uploaded file failed. Target: $targetFile");
+            $_SESSION['error'] = "Failed to save uploaded file";
+            header("Location: edit_job.php?jobID=$jobID");
             exit();
         }
     }
+
+    // Update job in database
+    $stmt = $conn->prepare("UPDATE joblist SET 
+        jobTitle=?, description=?, Salary=?, Benefits=?, Schedule=?, 
+        requirements=?, Skills=?, posted_date=?, status=?, location=?, 
+        education=?, Experience=?, Photo=? 
+        WHERE jobID=? AND employerID=?");
     
-    if (!is_writable($uploadDir)) {
-        $_SESSION['error'] = "Upload directory is not writable.";
-        header("Location: employer_dashboard.php");
-        exit();
-    }
-
-    // Secure filename and create unique name
-    $filename = preg_replace("/[^a-zA-Z0-9\._-]/", "", $_FILES["photo"]["name"]);
-    $targetFile = $uploadDir . uniqid() . "_" . $filename;
-
-    // Validate file type using MIME
-    $allowedTypes = ['image/jpeg', 'image/png', 'image/gif'];
-    $finfo = finfo_open(FILEINFO_MIME_TYPE);
-    $mime = finfo_file($finfo, $_FILES['photo']['tmp_name']);
-    finfo_close($finfo);
-    
-    if (!in_array($mime, $allowedTypes)) {
-        $_SESSION['error'] = "Invalid file type. Only JPEG, PNG, GIF allowed.";
-        header("Location: employer_dashboard.php");
-        exit();
-    }
-
-    // Move uploaded file
-    if (move_uploaded_file($_FILES["photo"]["tmp_name"], $targetFile)) {
-        $photoPath = $targetFile;
-    } else {
-        error_log("Move uploaded file failed. Target: $targetFile");
-        $_SESSION['error'] = "Failed to save uploaded file.";
-        header("Location: employer_dashboard.php");
-        exit();
-    }
-} elseif (isset($_FILES['photo'])) {
-    // Handle specific upload errors
-    $uploadErrors = [
-        UPLOAD_ERR_INI_SIZE => 'File is too large',
-        UPLOAD_ERR_FORM_SIZE => 'File exceeds form limit',
-        UPLOAD_ERR_PARTIAL => 'File only partially uploaded',
-        UPLOAD_ERR_NO_FILE => 'No file was uploaded',
-        UPLOAD_ERR_NO_TMP_DIR => 'Missing temporary folder',
-        UPLOAD_ERR_CANT_WRITE => 'Failed to write to disk',
-        UPLOAD_ERR_EXTENSION => 'File upload stopped by extension'
-    ];
-    
-    $errorCode = $_FILES['photo']['error'];
-    $errorMsg = $uploadErrors[$errorCode] ?? 'Unknown upload error';
-    $_SESSION['error'] = "File upload error: $errorMsg";
-    header("Location: employer_dashboard.php");
-    exit();
-}
-
-
-    // Prepare and bind
-    $stmt = $conn->prepare("INSERT INTO joblist ( employerID, jobTitle, description, Salary, Benefits, Schedule, requirements, Skills, posted_date, status, location, education, Experience,Photo) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,?,?,?)");
     if ($stmt === false) {
         die('Prepare failed: ' . htmlspecialchars($conn->error));
     }
-
-    $stmt->bind_param("isssssssssssss", 
-    $employerID, $jobTitle, $description, $salary, $benefits, 
-    $schedule, $requirements, $skills, $posted_date, $status, 
-    $location, $education, $experience, $photoPath
-);
-
-
-
-
+    
+    $stmt->bind_param("ssssssssssssssi", 
+        $jobTitle, $description, $salary, $benefits, $schedule, 
+        $requirements, $skills, $posted_date, $status, $location, 
+        $education, $experience, $photoPath, $jobID, $employerID
+    );
+    
     if ($stmt->execute()) {
-        $_SESSION['success'] = "Job posted successfully.";
+        $_SESSION['success'] = "Job updated successfully";
     } else {
-        $_SESSION['error'] = "Error posting job: " . htmlspecialchars($stmt->error);
+        $_SESSION['error'] = "Error updating job: " . htmlspecialchars($stmt->error);
     }
-
+    
     $stmt->close();
     $conn->close();
-
-    header("Location: employer_dashboard.php");
-    exit();
-} else {
+    
     header("Location: employer_dashboard.php");
     exit();
 }
 ?>
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Edit Job - <?php echo htmlspecialchars($job['jobTitle']); ?></title>
+    <link rel="stylesheet" href="../For_design/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+      
+    </style>
+</head>
+<body>
+    <div class="sidebar">
+        <!-- Your sidebar content here -->
+    </div>
+    
+    <div class="main">
+        <div class="edit-job-container">
+            <div class="edit-job-header">
+                <h1>Edit Job: <?php echo htmlspecialchars($job['jobTitle']); ?></h1>
+                <a href="employer_dashboard.php" class="back-btn">
+                    <i class="fas fa-arrow-left"></i> Back to Dashboard
+                </a>
+            </div>
+            
+            <?php if (isset($_SESSION['error'])): ?>
+                <div class="error-message">
+                    <i class="fas fa-exclamation-circle"></i> <?php echo htmlspecialchars($_SESSION['error']); ?>
+                </div>
+                <?php unset($_SESSION['error']); ?>
+            <?php endif; ?>
+            
+            <?php if (isset($_SESSION['success'])): ?>
+                <div class="success-message">
+                    <i class="fas fa-check-circle"></i> <?php echo htmlspecialchars($_SESSION['success']); ?>
+                </div>
+                <?php unset($_SESSION['success']); ?>
+            <?php endif; ?>
+            
+            <form action="post_job.php?jobID=<?php echo $jobID; ?>" method="POST" enctype="multipart/form-data">
+                <div class="job-form-grid">
+                    <div class="form-group">
+                        <label for="jobTitle">Job Title *</label>
+                        <input type="text" id="jobTitle" name="jobTitle" value="<?php echo htmlspecialchars($job['jobTitle']); ?>" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="status">Status *</label>
+                        <select id="status" name="status" required>
+                            <option value="Open" <?php echo ($job['status'] === 'Open') ? 'selected' : ''; ?>>Open</option>
+                            <option value="Closed" <?php echo ($job['status'] === 'Closed') ? 'selected' : ''; ?>>Closed</option>
+                            <option value="On Hold" <?php echo ($job['status'] === 'On Hold') ? 'selected' : ''; ?>>On Hold</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="salary">Salary *</label>
+                        <input type="text" id="salary" name="salary" value="<?php echo htmlspecialchars($job['Salary']); ?>" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="location">Location *</label>
+                        <input type="text" id="location" name="location" value="<?php echo htmlspecialchars($job['location']); ?>" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="posted_date">Posted Date *</label>
+                        <input type="date" id="posted_date" name="posted_date" value="<?php echo htmlspecialchars($job['posted_date']); ?>" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="education">Education Required *</label>
+                        <input type="text" id="education" name="education" value="<?php echo htmlspecialchars($job['education']); ?>" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="experience">Experience Required *</label>
+                        <input type="text" id="experience" name="experience" value="<?php echo htmlspecialchars($job['Experience']); ?>" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="schedule">Schedule *</label>
+                        <input type="text" id="schedule" name="schedule" value="<?php echo htmlspecialchars($job['Schedule']); ?>" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="benefits">Benefits *</label>
+                        <input type="text" id="benefits" name="benefits" value="<?php echo htmlspecialchars($job['Benefits']); ?>" required>
+                    </div>
+                    
+                    <div class="form-group full-width">
+                        <label for="description">Job Description *</label>
+                        <textarea id="description" name="description" required><?php echo htmlspecialchars($job['description']); ?></textarea>
+                    </div>
+                    
+                    <div class="form-group full-width">
+                        <label for="requirements">Requirements *</label>
+                        <textarea id="requirements" name="requirements" required><?php echo htmlspecialchars($job['requirements']); ?></textarea>
+                    </div>
+                    
+                    <div class="form-group full-width">
+                        <label for="skills">Required Skills *</label>
+                        <textarea id="skills" name="skills" required><?php echo htmlspecialchars($job['Skills']); ?></textarea>
+                    </div>
+                    
+                    <div class="form-group full-width">
+                        <label for="photo">Job Photo</label>
+                        <input type="file" id="photo" name="photo" accept="image/*">
+                        
+                        <?php if (!empty($job['Photo'])): ?>
+                            <div class="photo-preview">
+                                <img src="<?php echo htmlspecialchars($job['Photo']); ?>" alt="Current Job Photo">
+                                <div>
+                                    <p>Current photo</p>
+                                    <div class="photo-actions">
+                                        <a href="<?php echo htmlspecialchars($job['Photo']); ?>" target="_blank" class="btn">
+                                            <i class="fas fa-eye"></i> View
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                        <?php endif; ?>
+                    </div>
+                    
+                    <div class="form-group full-width" style="text-align: right;">
+                        <button type="submit" class="btn-submit">
+                            <i class="fas fa-save"></i> Update Job
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</body>
+</html>

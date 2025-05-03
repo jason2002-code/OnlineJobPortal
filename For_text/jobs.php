@@ -1,31 +1,43 @@
+<?php
+include("../Functions/db_connection.php");
+
+// Fetch distinct Schedule values for job_type dropdown
+$schedule_result = $conn->query("SELECT DISTINCT Schedule FROM joblist ORDER BY Schedule ASC");
+$schedules = [];
+if ($schedule_result) {
+    while ($row = $schedule_result->fetch_assoc()) {
+        if (!empty($row['Schedule'])) {
+            $schedules[] = $row['Schedule'];
+        }
+    }
+}
+
+// Fetch distinct education values for education dropdown
+$education_result = $conn->query("SELECT DISTINCT education FROM joblist ORDER BY education ASC");
+$educations = [];
+if ($education_result) {
+    while ($row = $education_result->fetch_assoc()) {
+        if (!empty($row['education'])) {
+            $educations[] = $row['education'];
+        }
+    }
+}
+?>
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-   
-   
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>All jobs</title>
-
-    <link rel="stylesheet" href="../For_design/design.css">
-    
-
+    <link rel="stylesheet" href="../For_design/design.css" />
 </head>
-
 <body>
-
-
     <header class="header">
         <section class="flex">
             <div id="menu-btn" class="fas fa-bars-staggered"></div>
-           
-           
-            <a href="home.php" class="logo"><i class="fas fa-briefcase"></i> 
-                Upwork.</a>
-            
-            
+            <a href="home.php" class="logo"><i class="fas fa-briefcase"></i> Upwork.</a>
             <nav class="navbar">
                 <a href="home.php">home</a>
                 <a href="about.php">about us</a>
@@ -35,33 +47,24 @@
             </nav>
             <a href="#" class="btn" style="margin-top: 0;">post job</a>
         </section>
-
-
     </header>
 
     <section class="job-filter">
-
         <h1 class="heading">filter jobs</h1>
-
-        <form action="" method="post">
+        <form action="" method="post" id="jobFilterForm">
             <div class="flex">
                 <div class="box">
                     <p>job title<span>*</span></p>
-                    <input type="text" name="title" placeholder="keyword, category or company"required maxlength="20" class="input">
+                    <input type="text" name="title" placeholder="keyword, category or company" required maxlength="20" class="input" />
                 </div>
-                     <div class="box">
-
-                     <p> job location</p>
-                     <input type="text" name="location" placeholder=" city,  state or country"
-                     required maxlength="50" class="input">
-                  
+                <div class="box">
+                    <p> job location</p>
+                    <input type="text" name="location" placeholder=" city,  state or country" required maxlength="50" class="input" />
                 </div>
             </div>
-              <div class="dropdown-container">
+            <div class="dropdown-container">
                 <div class="dropdown">
-                    <input type="text" readonly placeholder="date posted"
-                   maxlength="20" name="date"
-                    class="output">
+                    <input type="text" readonly placeholder="date posted" maxlength="20" name="date" class="output" />
                     <div class="lists">
                         <p class="items">today</p>
                         <p class="items">3 days ago</p>
@@ -69,14 +72,10 @@
                         <p class="items">10 days ago</p>
                         <p class="items">15 days ago</p>
                         <p class="items">30 days ago</p>
-
                     </div>
                 </div>
-
                 <div class="dropdown">
-                    <input type="text" readonly name="date" placeholder="estimated"
-                   maxlength="20"  class="output">
-                   
+                    <input type="text" readonly name="salary" placeholder="estimated" maxlength="20" class="output" />
                     <div class="lists">
                         <p class="items">55k - 80k</p>
                         <p class="items">50k - 75k</p>
@@ -94,340 +93,173 @@
                         <p class="items">4k - 16k</p>
                         <p class="items">5k - 10k</p>
                         <p class="items">1k or more</p>
-
                     </div>
                 </div>
-
-
-
-
                 <div class="dropdown">
-                    <input type="text" readonly name="date" placeholder="job type"
-                   maxlength="20"  class="output">
-                   
+                    <input type="text" readonly name="job_type" placeholder="job type" maxlength="20" class="output" />
                     <div class="lists">
-                        <p class="items">full-time</p>
-                        <p class="items">part-time</p>
-                        <p class="items">internship</p>
-                        <p class="items">contract</p>
-                        <p class="items">temporary</p>
-                        <p class="items">fresher</p>
-
+                        <?php foreach ($schedules as $schedule): ?>
+                            <p class="items"><?= htmlspecialchars($schedule) ?></p>
+                        <?php endforeach; ?>
                     </div>
                 </div>
-
-
                 <div class="dropdown">
-                    <input type="text" readonly name="date" placeholder="education level" maxlength="20" 
-                    class="output">
+                    <input type="text" readonly name="education" placeholder="education level" maxlength="20" class="output" />
                     <div class="lists">
-                        <p class="items">10 pass</p>
-                        <p class="items">12th pass</p>
-                        <p class="items">bachelor's degree</p>
-                        <p class="items">master's degree</p>
-                        <p class="items">diploma</p>
-
+                        <?php foreach ($educations as $edu): ?>
+                            <p class="items"><?= htmlspecialchars($edu) ?></p>
+                        <?php endforeach; ?>
                     </div>
                 </div>
-
-                <div class="dropdown">
-                    <input type="text" readonly name="date" placeholder="work shifts"
-                   maxlength="20" 
-                    class="output">
-                    <div class="lists">
-                        <p class="items">day shift</p>
-                        <p class="items">night shift</p>
-                        <p class="items">flexible shift</p>
-                        <p class="items">fixed shift</p>
-                    </div>
-                </div>
-              </div>
+            </div>
+            <div class="flex-btn">
+                <button type="submit" name="search" class="btn">Search</button>
+            </div>
         </form>
-
     </section>
-
-
 
     <section class="jobs-container">
         <h1 class="heading">all jobs</h1>
-    
         <div class="box-container">
-            
-            <div class="box">
-                <div class="company">
-                    <img src="https://cdn-icons-png.freepik.com/256/3291/3291670.png?ga=GA1.1.173187149.1743160049&semt=ais_hybrid" alt="">
-    
-                    <div>
-                        <h3>IT infosys co.</h3>
-                        <p>2 days ago</p>
+            <?php
+            $title = $location = $date = $salary = $job_type = $education = $work_shift = "";
+            if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['search'])) {
+                $title = isset($_POST['title']) ? $conn->real_escape_string($_POST['title']) : '';
+                $location = isset($_POST['location']) ? $conn->real_escape_string($_POST['location']) : '';
+                $date = isset($_POST['date']) ? $conn->real_escape_string($_POST['date']) : '';
+                $salary = isset($_POST['salary']) ? $conn->real_escape_string($_POST['salary']) : '';
+                $job_type = isset($_POST['job_type']) ? $conn->real_escape_string($_POST['job_type']) : '';
+                $education = isset($_POST['education']) ? $conn->real_escape_string($_POST['education']) : '';
+
+                $conditions = [];
+
+                if (!empty($title) && !empty($location)) {
+                    $title_esc = $conn->real_escape_string($title);
+                    $location_esc = $conn->real_escape_string($location);
+                    $conditions[] = "(jobTitle LIKE '%$title_esc%' OR location LIKE '%$location_esc%')";
+                } else {
+                    if (!empty($title)) {
+                        $conditions[] = "jobTitle LIKE '%$title%'";
+                    }
+                    if (!empty($location)) {
+                        $conditions[] = "location LIKE '%$location%'";
+                    }
+                }
+
+                // Date posted filter: calculate date range based on selected option
+                if (!empty($date)) {
+                    $days_ago = 0;
+                    switch (strtolower($date)) {
+                        case 'today':
+                            $days_ago = 0;
+                            break;
+                        case '3 days ago':
+                            $days_ago = 3;
+                            break;
+                        case '7 days ago':
+                            $days_ago = 7;
+                            break;
+                        case '10 days ago':
+                            $days_ago = 10;
+                            break;
+                        case '15 days ago':
+                            $days_ago = 15;
+                            break;
+                        case '30 days ago':
+                            $days_ago = 30;
+                            break;
+                        default:
+                            $days_ago = 0;
+                    }
+                    $date_limit = date('Y-m-d', strtotime("-$days_ago days"));
+                    $conditions[] = "posted_date >= '$date_limit'";
+                }
+
+                // Salary filter: parse min and max salary from string like "55k - 80k"
+                if (!empty($salary)) {
+                $salary = strtolower(str_replace(' ', '', $salary));
+                if (strpos($salary, 'or more') !== false) {
+                    // Extract the number before 'k or more'
+                    preg_match('/(\d+)k/', $salary, $matches);
+                    $min_salary = isset($matches[1]) ? intval($matches[1]) * 1000 : 0;
+                    $conditions[] = "Salary >= $min_salary";
+                } elseif (strpos($salary, '-') !== false) {
+                    list($min_salary, $max_salary) = explode('-', $salary);
+                    $min_salary = intval(str_replace('k', '000', $min_salary));
+                    $max_salary = intval(str_replace('k', '000', $max_salary));
+                    $conditions[] = "Salary BETWEEN $min_salary AND $max_salary";
+                }
+                }
+
+                // Job type filter (Schedule column)
+                if (!empty($job_type)) {
+                    $conditions[] = "Schedule = '$job_type'";
+                }
+
+                // Education filter
+                if (!empty($education)) {
+                    $conditions[] = "education = '$education'";
+                }
+
+                $where_clause = "";
+                if (count($conditions) > 0) {
+                    $where_clause = "WHERE " . implode(" AND ", $conditions);
+                }
+
+                $sql = "SELECT * FROM joblist $where_clause ORDER BY posted_date DESC";
+            } else {
+                $sql = "SELECT * FROM joblist ORDER BY posted_date DESC";
+            }
+            $result = $conn->query($sql);
+            if (!$result) {
+                echo "<p style='color:red; text-align:center;'>Database query error: " . htmlspecialchars($conn->error) . "</p>";
+            } else {
+                if ($result->num_rows > 0):
+                    while ($row = $result->fetch_assoc()):
+                        $imagePath = !empty($row['Photo']) ? $row['Photo'] : 'https://cdn-icons-png.freepik.com/256/3291/3291670.png';
+                ?>
+                <div class="box">
+                    <div class="company">
+                        <img src="<?php echo htmlspecialchars($imagePath); ?>" alt="Job Image" />
+                        <div>
+                            <h3><?= htmlspecialchars($row['companyName'] ?? 'Company') ?></h3>
+                            <p><?= date('F j, Y', strtotime($row['posted_date'])) ?></p>
+                        </div>
+                    </div>
+                    <div class="job-info">
+                        <h3 class="job-title"><?= htmlspecialchars($row['jobTitle']) ?></h3>
+                        <p class="location"><i class="fas fa-map-marker-alt"></i> <span><?= htmlspecialchars($row['location']) ?></span></p>
+                    </div>
+                    <div class="tags">
+                        <p><i class="fas fa-solid fa-peso-sign"></i><span><?= htmlspecialchars($row['Salary']) ?></span></p>
+                        <p><i class="fas fa-briefcase"></i><span><?= htmlspecialchars($row['status']) ?></span></p>
+                        <p><i class="fas fa-clock"></i><span><?= htmlspecialchars($row['Schedule']) ?></span></p>
+                    </div>
+                    <div class="flex-btn">
+                        <a href="view_job.php?jobID=<?= $row['jobID'] ?>" class="btn">view details</a>
+                        <button type="submit" class="far fa-heart" name="save"></button>
                     </div>
                 </div>
-<div class="job-info">
-    <h3 class="job-title">senior web developer</h3>
-    <p class="location"><i class ="fas fa-map-marker-alt"></i>
-    <span>Tagbilaran, Philippines</span></p>
-</div>
-
-                <div class="tags">
-                    <p><i class="fas fa-solid fa-peso-sign"></i><span> 10k - 25k</span> </p>
-                    <p><i class="fas fa-briefcase"></i><span>part-time</span></p>
-                    <p><i class="fas fa-clock"></i><span>day shift</span></p>
-                </div>
-                <div class="flex-btn">
-                    <a href="view_job.php" class="btn">view details</a>
-                    <button type="submit" class="far fa-heart" name="save"></button>
-                </div>
-            </div>
-    
-    
-    
-        <div class="box">
-            <div class="company">
-                <img src="https://cdn-icons-png.freepik.com/256/732/732190.png?ga=GA1.1.173187149.1743160049&semt=ais_hybrid" alt="">
-    
-                <div>
-                    <h3>all media ltd</h3>
-                    <span>2 days ago</span>
-                </div>
-            </div>
-<div class="job-info">
-    <h3 class="job-title">qualified developer</h3>
-    <p class="location"><i class ="fas fa-map-marker-alt"></i>
-    <span>Tagbilaran, Philippines</span></p>
-</div>
-
-            <div class="tags">
-                <p><i class="fas fa-solid fa-peso-sign"></i><span> 9000</span> </p>
-                <p><i class="fas fa-briefcase"></i><span>full-time</span></p>
-                <p><i class="fas fa-clock"></i><span>flexible shifts</span></p>
-            </div>
-            <div class="flex-btn">
-                <a href="view_job.php" class="btn">view details</a>
-                <button class="far fa-heart"></button>
-            </div>
+                <?php
+                    endwhile;
+                else:
+                    echo "<p style='text-align:center;'>No job postings found.</p>";
+                endif;
+            }
+            ?>
         </div>
-    
-    
-    
-    
-    
-    
-        <div class="box">
-            <div class="company">
-                <img src="https://cdn-icons-png.freepik.com/256/721/721671.png?ga=GA1.1.173187149.1743160049&semt=ais_hybrid" alt="">
-    
-                <div>
-                    <h3>software solution</h3>
-                    <span>posted today</span>
-                </div>
-            </div>
-<div class="job-info">
-    <h3 class="job-title">javascript developer</h3>
-    <p class="location"><i class ="fas fa-map-marker-alt"></i>
-    <span>Tagbilaran, Philippines</span></p>
-</div>
-
-            <div class="tags">
-                <p><i class="fas fa-solid fa-peso-sign"></i><span> 10k - 25k</span> </p>
-                <p><i class="fas fa-briefcase"></i><span>fresher</span></p>
-                <p><i class="fas fa-clock"></i><span>fixed shift</span></p>
-            </div>
-            <div class="flex-btn">
-                <a href="view_job.php" class="btn">view details</a>
-                <button class="far fa-heart"></button>
-            </div>
-        </div>
-    
-    
-    
-    
-    
-    
-        <div class="box">
-            <div class="company">
-                <img src="https://i.pinimg.com/474x/bb/c1/42/bbc142512320c86652e9ef63d1926aa7.jpg" alt="">
-    
-                <div>
-                    <h3>IT world</h3>
-                    <span>19 days ago</span>
-                </div>
-            </div>
-<div class="job-info">
-    <h3 class="job-title">junior front-end</h3>
-    <p class="location"><i class ="fas fa-map-marker-alt"></i>
-    <span>Tagbilaran, Philippines</span></p>
-</div>
-
-            <div class="tags">
-                <p><i class="fas fa-solid fa-peso-sign"></i><span> 20 - 50k</span> </p>
-                <p><i class="fas fa-briefcase"></i><span>contract</span></p>
-                <p><i class="fas fa-clock"></i><span>fixed shift</span></p>
-            </div>
-            <div class="flex-btn">
-                <a href="view_job.php" class="btn">view details</a>
-                <button type="submit" class="far fa-heart"></button>
-            </div>
-        </div>
-    
-    
-    
-    
-    
-        <div class="box">
-            <div class="company">
-                <img src="https://i.pinimg.com/736x/41/07/a8/4107a8da9978f4b585f31ea79cbb8e6b.jpg" alt="">
-    
-                <div>
-                    <h3>info statics</h3>
-                    <span>2 days ago</span>
-                </div>
-            </div>
-            <h3 class="job-title">junior assistant</h3>
-            <p class="location"><i class ="fas fa-map-marker-alt"></i>
-            <span>Tagbilaran, Philippines</span></p>
-            <div class="tags">
-                <p><i class="fas fa-solid fa-peso-sign"></i><span>5000</span> </p>
-                <p><i class="fas fa-briefcase"></i><span>temporary</span></p>
-                <p><i class="fas fa-clock"></i><span>flexible shifts</span></p>
-            </div>
-            <div class="flex-btn">
-                <a href="view_job.php" class="btn">view details</a>
-                <button type="submit" class="far fa-heart"></button>
-            </div>
-        </div>
-    
-    
-    
-    
-    
-    
-    
-        <div class="box">
-            <div class="company">
-                <img src="https://i.pinimg.com/736x/3a/72/70/3a72704290deda01ad43d1e4cfbf9437.jpg" alt="">
-    
-                <div>
-                    <h3>mass idea</h3>
-                    <span>2 days ago</span>
-                </div>
-            </div>
-<div class="job-info">
-    <h3 class="job-title">PHP developer</h3>
-    <p class="location"><i class ="fas fa-map-marker-alt"></i>
-    <span>Tagbilaran, Philippines</span></p>
-</div>
-
-            <div class="tags">
-                <p><i class="fas fa-solid fa-peso-sign"></i><span> 30k - 10k</span> </p>
-                <p><i class="fas fa-briefcase"></i><span>fresher</span></p>
-                <p><i class="fas fa-clock"></i><span>fixed shift</span></p>
-            </div>
-            <div class="flex-btn">
-                <a href="view_job.php" class="btn">view details</a>
-                <button class="far fa-heart"></button>
-            </div>
-        </div>
-    
-        <div class="box">
-            <div class="company">
-                <img src="https://cdn-icons-png.freepik.com/256/5968/5968672.png?ga=GA1.1.2089779121.1743241104&semt=ais_hybrid" alt="">
-    
-                <div>
-                    <h3>info statics</h3>
-                    <span>2 days ago</span>
-                </div>
-            </div>
-            <h3 class="job-title">junior assistant</h3>
-            <p class="location"><i class ="fas fa-map-marker-alt"></i>
-            <span>Tagbilaran, Philippines</span></p>
-            <div class="tags">
-                <p><i class="fas fa-solid fa-peso-sign"></i><span>5000</span> </p>
-                <p><i class="fas fa-briefcase"></i><span>temporary</span></p>
-                <p><i class="fas fa-clock"></i><span>flexible shifts</span></p>
-            </div>
-            <div class="flex-btn">
-                <a href="view_job.php" class="btn">view details</a>
-                <button type="submit" class="far fa-heart"></button>
-            </div>
-        </div>
-
-
-        <div class="box">
-            <div class="company">
-                <img src="https://cdn-icons-png.freepik.com/256/919/919836.png?ga=GA1.1.2089779121.1743241104&semt=ais_hybrid" alt="">
-    
-                <div>
-                    <h3>Software Solutions</h3>
-                    <span>2 days ago</span>
-                </div>
-            </div>
-            <h3 class="job-title">junior assistant</h3>
-            <p class="location"><i class ="fas fa-map-marker-alt"></i>
-            <span>Tagbilaran, Philippines</span></p>
-            <div class="tags">
-                <p><i class="fas fa-solid fa-peso-sign"></i><span>10k - 25k</span> </p>
-                <p><i class="fas fa-briefcase"></i><span>internship</span></p>
-                <p><i class="fas fa-clock"></i><span>night shift</span></p>
-            </div>
-            <div class="flex-btn">
-                <a href="view_job.php" class="btn">view details</a>
-                <button type="submit" class="far fa-heart"></button>
-            </div>
-        </div>
-
-
-        <div class="box">
-            <div class="company">
-                <img src="https://cdn-icons-png.freepik.com/256/753/753244.png?ga=GA1.1.2089779121.1743241104&semt=ais_hybrid" alt="">
-    
-                <div>
-                    <h3>IT infosys Co.</h3>
-                    <span>2 days ago</span>
-                </div>
-            </div>
-            <h3 class="job-title">Senior Web Developer</h3>
-            <p class="location"><i class ="fas fa-map-marker-alt"></i>
-            <span>Tagbilaran, Philippines</span></p>
-            <div class="tags">
-                <p><i class="fas fa-solid fa-peso-sign"></i><span>10k - 25k</span> </p>
-                <p><i class="fas fa-briefcase"></i><span>part-time</span></p>
-                <p><i class="fas fa-clock"></i><span>day shift</span></p>
-            </div>
-            <div class="flex-btn">
-                <a href="view_job.php" class="btn">view details</a>
-                <button type="submit" class="far fa-heart"></button>
-            </div>
-        </div>
-
-
-    </div>
-       
-        
     </section>
-    
 
-
-
-
-
-
-
-
-
-
-<footer class="footer">
-
-    <section class="grid">
-        <div class="box">
-            <h3>quick links</h3>
-            <a href="home.php"><i class="fas fa-angle-right"></i> home </a>
-            <a href="about.php"><i class="fas fa-angle-right"></i> about </a>
-            <a href="jobs.php"><i class="fas fa-angle-right"></i> all jobs </a>   
-            <a href="contact.php"><i class="fas fa-angle-right"></i> contact us</a>
-            <a href="#"><i class="fas fa-angle-right"></i> filter search </a>
-        </div>
-
-        
+    <footer class="footer">
+        <section class="grid">
+            <div class="box">
+                <h3>quick links</h3>
+                <a href="home.php"><i class="fas fa-angle-right"></i> home </a>
+                <a href="about.php"><i class="fas fa-angle-right"></i> about </a>
+                <a href="jobs.php"><i class="fas fa-angle-right"></i> all jobs </a>
+                <a href="contact.php"><i class="fas fa-angle-right"></i> contact us</a>
+                <a href="#"><i class="fas fa-angle-right"></i> filter search </a>
+            </div>
             <div class="box">
                 <h3>extra links</h3>
                 <a href="#"><i class="fas fa-angle-right"></i> account </a>
@@ -443,39 +275,26 @@
                 <a href="#"><i class="fab fa-instagram"></i> instagram</a>
                 <a href="#"><i class="fab fa-linkedin"></i> linkedin</a>
                 <a href="#"><i class="fab fa-youtube"></i> youtube</a>
-
             </div>
+        </section>
 
-    </section>
-
-    <div class="credit">&copy; copyright @ 2025 by <span>mr. web designer
-    </span> | all rights reserved!</div>
-</footer>
-
-
-
-
-
+        <div class="credit">&copy; copyright @ 2025 by <span>mr. web designer
+            </span> | all rights reserved!</div>
+    </footer>
 
     <script src="../Functions/script.js"></script>
-       
 
-<script>
+    <script>
+        let dropdown_items = document.querySelectorAll('.job-filter form .dropdown-container .dropdown .lists .items');
 
-let dropdown_items = document.querySelectorAll('.job-filter form .dropdown-container .dropdown .lists .items');
+        dropdown_items.forEach(items => {
+            items.onclick = () => {
+                items_parent = items.parentElement.parentElement;
+                let output = items_parent.querySelector('.output');
+                output.value = items.innerText;
+            }
+        });
+    </script>
 
-dropdown_items.forEach(items =>{
-
-    items.onclick = () =>{
-    items_parent = items.parentElement.parentElement;
-    let output = items_parent.querySelector('.output');
-    output.value = items.innerText;
-    }
-});
-
-
-</script>
-
-
-    <body>
-    </html>
+</body>
+</html>

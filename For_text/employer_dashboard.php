@@ -8,6 +8,28 @@ if (!isset($_SESSION['employerID'])) {
     exit();
 }
 
+// Handle delete job request
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_job']) && isset($_POST['delete_jobID'])) {
+    $delete_jobID = intval($_POST['delete_jobID']);
+    $employerID = $_SESSION['employerID'];
+
+    // Delete job only if it belongs to the logged-in employer
+    $stmt = $conn->prepare("DELETE FROM joblist WHERE jobID = ? AND employerID = ?");
+    if ($stmt) {
+        $stmt->bind_param("ii", $delete_jobID, $employerID);
+        if ($stmt->execute()) {
+            $_SESSION['success'] = "Job deleted successfully.";
+        } else {
+            $_SESSION['error'] = "Failed to delete job.";
+        }
+        $stmt->close();
+    } else {
+        $_SESSION['error'] = "Failed to prepare delete statement.";
+    }
+    header("Location: employer_dashboard.php");
+    exit();
+}
+
 // Get employer details
 $employer_id = $_SESSION['employerID'];
 $select_employer = "SELECT * FROM employers WHERE employerID = '$employer_id'";
@@ -21,7 +43,7 @@ $employer = mysqli_fetch_assoc($result_employer);
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Employer Dashboard</title>
-    <link rel="stylesheet" href="../For_design/empdash.css">
+    <link rel="stylesheet" href="../For_design/style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 </head>
@@ -132,9 +154,46 @@ $employer = mysqli_fetch_assoc($result_employer);
                     echo "<div class='card'>$role</div>";
                 }
                 ?>
-
-
             </div>
+        </section>
+
+        <section class="posted-jobs">
+            <h4>Your Posted Jobs</h4>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Job Title</th>
+                        <th>Status</th>
+                        <th>Posted Date</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php
+                    $employerID = $_SESSION['employerID'];
+                    $query = "SELECT * FROM joblist WHERE employerID = '$employerID' ORDER BY posted_date DESC";
+                    $result = mysqli_query($conn, $query);
+                    if ($result && mysqli_num_rows($result) > 0) {
+                        while ($job = mysqli_fetch_assoc($result)) {
+                            echo "<tr>";
+                            echo "<td>" . htmlspecialchars($job['jobTitle']) . "</td>";
+                            echo "<td>" . htmlspecialchars($job['status']) . "</td>";
+                            echo "<td>" . htmlspecialchars(date('F j, Y', strtotime($job['posted_date']))) . "</td>";
+                            echo "<td>
+                                <a href='post_job.php?jobID=" . $job['jobID'] . "' class='btn update-btn'>Update</a>
+                                <form action='employer_dashboard.php' method='POST' style='display:inline;' onsubmit='return confirm(\"Are you sure you want to delete this job?\");'>
+                                    <input type='hidden' name='delete_jobID' value='" . $job['jobID'] . "'>
+                                    <button type='submit' name='delete_job' class='btn delete-btn'>Delete</button>
+                                </form>
+                            </td>";
+                            echo "</tr>";
+                        }
+                    } else {
+                        echo "<tr><td colspan='4'>No jobs posted yet.</td></tr>";
+                    }
+                    ?>
+                </tbody>
+            </table>
         </section>
 
         <section class="recruitment-progress">

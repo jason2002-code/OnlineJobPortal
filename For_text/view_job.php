@@ -32,6 +32,7 @@ $job = mysqli_fetch_assoc($result);
     <title>View job</title>
 
     <link rel="stylesheet" href="../For_design/design.css">
+    <link rel="stylesheet" href="../For_design/save_job_button.css">
 
 
 </head>
@@ -98,10 +99,45 @@ $job = mysqli_fetch_assoc($result);
                 </ul>
                 </ul>
             </div>
-            <form action="" method="post" class="flex-btn" id="applyForm">
-                <input type="submit" value="apply now" name="apply" class="btn" id="applyBtn">
-                <button type="submit" class="save"><i class="far fa-heart "></i><span>save job</span></button>
-            </form>
+        <form action="" method="post" class="flex-btn" id="applyForm">
+            <input type="submit" value="apply now" name="apply" class="btn" id="applyBtn">
+<button type="submit" class="save save-job-btn">
+<input type="submit" value="save job" name="apply" class="btn" id="applyBtn">
+</button>
+        </form>
+
+        <?php
+        session_start();
+        if (isset($_SESSION['employerID']) && $_SESSION['employerID'] == $job['employerID']) {
+           
+        }
+
+        // Handle delete job request from this page
+        if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_job']) && isset($_POST['delete_jobID'])) {
+            $delete_jobID = intval($_POST['delete_jobID']);
+            $employerID = $_SESSION['employerID'];
+
+            if ($delete_jobID === $job['jobID'] && $employerID === $job['employerID']) {
+                include("../Functions/db_connection.php");
+                $stmt = $conn->prepare("DELETE FROM joblist WHERE jobID = ? AND employerID = ?");
+                if ($stmt) {
+                    $stmt->bind_param("ii", $delete_jobID, $employerID);
+                    if ($stmt->execute()) {
+                        $_SESSION['success'] = "Job deleted successfully.";
+                        header("Location: employer_dashboard.php");
+                        exit();
+                    } else {
+                        echo "<p class='error'>Failed to delete job.</p>";
+                    }
+                    $stmt->close();
+                } else {
+                    echo "<p class='error'>Failed to prepare delete statement.</p>";
+                }
+            } else {
+                echo "<p class='error'>Unauthorized delete attempt.</p>";
+            }
+        }
+        ?>
 
             <script>
                 document.getElementById('applyForm').addEventListener('submit', function(e) {

@@ -427,3 +427,33 @@ body {
     }
 }
 
+/* Buttons for employer dashboard */
+.btn {
+    display: inline-block;
+    padding: 8px 14px;
+    font-size: 0.9rem;
+    border-radius: 6px;
+    text-decoration: none;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+    border: none;
+    color: white;
+    margin-right: 8px;
+}
+
+.update-btn {
+    background-color: #3498db;
+}
+
+.update-btn:hover {
+    background-color: #2980b9;
+}
+
+.delete-btn {
+    background-color: #e74c3c;
+}
+
+.delete-btn:hover {
+    background-color: #c0392b;
+}
+

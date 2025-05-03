@@ -32,7 +32,7 @@ include("../Functions/db_connection.php");
 
 <div class="home-container">
     <section class="home">
-        <form action="" method="post">
+        <form action="jobs.php" method="post">
             <h3>Find your next job</h3>
             <p>Job title<span>*</span></p>
             <input type="text" name="title" placeholder="keyword, category or company" required maxlength="20" class="input">
@@ -115,7 +115,23 @@ $imagePath = !empty($row['Photo']) ?
             <div class="company">
             <img src="<?php echo htmlspecialchars($row['Photo']); ?>" alt="Job Image">
                 <div>
-                    <h3><?= htmlspecialchars($row['companyName'] ?? 'Company') ?></h3>
+                    <h3>
+                    <?php
+                    $employerID = $row['employerID'];
+                    $companyName = 'Company';
+                    $employerQuery = "SELECT companyName FROM employers WHERE employerID = ?";
+                    if ($stmt = $conn->prepare($employerQuery)) {
+                        $stmt->bind_param("i", $employerID);
+                        $stmt->execute();
+                        $stmt->bind_result($fetchedCompanyName);
+                        if ($stmt->fetch()) {
+                            $companyName = $fetchedCompanyName;
+                        }
+                        $stmt->close();
+                    }
+                    echo htmlspecialchars($companyName);
+                    ?>
+                    </h3>
                     <p><?= date('F j, Y', strtotime($row['posted_date'])) ?></p>
                 </div>
             </div>
@@ -137,6 +153,10 @@ $imagePath = !empty($row['Photo']) ?
             echo "<p style='text-align:center;'>No job postings found.</p>";
         endif;
         ?>
+    </div>
+
+    <div style="text-align:center; margin: 20px 0;">
+        <a href="jobs.php" class="btn">View All Jobs</a>
     </div>
 </section>
 
