@@ -11,29 +11,181 @@ if (!isset($_SESSION['employerID'])) {
 $employerID = $_SESSION['employerID'];
 $jobID = isset($_GET['jobID']) ? intval($_GET['jobID']) : 0;
 
-if ($jobID === 0) {
-    $_SESSION['error'] = "Invalid job ID";
+$job = null;
+if ($jobID > 0) {
+    // Fetch job details for editing
+    $stmt = $conn->prepare("SELECT * FROM joblist WHERE jobID = ? AND employerID = ?");
+    if ($stmt === false) {
+        die('Prepare failed: ' . htmlspecialchars($conn->error));
+    }
+    $stmt->bind_param("ii", $jobID, $employerID);
+    $stmt->execute();
+    $result = $stmt->get_result();
+
+    if ($result && $result->num_rows === 1) {
+        $job = $result->fetch_assoc();
+    } else {
+        $_SESSION['error'] = "Job not found or you don't have permission to edit this job";
+        header("Location: employer_dashboard.php");
+        exit();
+    }
+    $stmt->close();
+}
+
+// If POST request, handle create or update
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    // Get and sanitize POST data
+    $jobTitle = trim($_POST['jobTitle']);
+    $description = trim($_POST['description']);
+    $salary = trim($_POST['salary']);
+    $benefits = trim($_POST['benefits']);
+    $schedule = trim($_POST['schedule']);
+    $requirements = trim($_POST['requirements']);
+    $skills = trim($_POST['skills']);
+    $posted_date = $_POST['posted_date'];
+    $status = $_POST['status'];
+    $location = trim($_POST['location']);
+    $education = trim($_POST['education']);
+    $experience = trim($_POST['experience']);
+
+    // Basic validation
+    if (empty($jobTitle) || empty($description) || empty($salary) || 
+        empty($benefits) || empty($schedule) || empty($requirements) || 
+        empty($skills) || empty($location) || empty($education) || 
+        empty($posted_date) || empty($status) || empty($experience)) {
+        
+        $_SESSION['error'] = "Please fill in all required fields";
+        if ($jobID > 0) {
+            header("Location: post_job.php?jobID=$jobID");
+        } else {
+            header("Location: employer_dashboard.php");
+        }
+        exit();
+    }
+
+    // Photo upload handling
+    $photoPath = $job ? $job['Photo'] : ''; // Keep existing photo if editing, empty if new
+
+    if (isset($_FILES['photo']) && $_FILES['photo']['error'] == UPLOAD_ERR_OK) {
+        $uploadDir = 'uploads/';
+        
+        // Verify directory exists and is writable
+        if (!file_exists($uploadDir)) {
+            if (!mkdir($uploadDir, 0755, true)) {
+                $_SESSION['error'] = "Failed to create upload directory";
+                if ($jobID > 0) {
+                    header("Location: post_job.php?jobID=$jobID");
+                } else {
+                    header("Location: employer_dashboard.php");
+                }
+                exit();
+            }
+        }
+        
+        if (!is_writable($uploadDir)) {
+            $_SESSION['error'] = "Upload directory is not writable";
+            if ($jobID > 0) {
+                header("Location: post_job.php?jobID=$jobID");
+            } else {
+                header("Location: employer_dashboard.php");
+            }
+            exit();
+        }
+
+        // Secure filename and create unique name
+        $filename = preg_replace("/[^a-zA-Z0-9\._-]/", "", $_FILES["photo"]["name"]);
+        $targetFile = $uploadDir . uniqid() . "_" . $filename;
+
+        // Validate file type using MIME
+        $allowedTypes = ['image/jpeg', 'image/png', 'image/gif'];
+        $finfo = finfo_open(FILEINFO_MIME_TYPE);
+        $mime = finfo_file($finfo, $_FILES['photo']['tmp_name']);
+        finfo_close($finfo);
+        
+        if (!in_array($mime, $allowedTypes)) {
+            $_SESSION['error'] = "Invalid file type. Only JPEG, PNG, GIF allowed";
+            if ($jobID > 0) {
+                header("Location: post_job.php?jobID=$jobID");
+            } else {
+                header("Location: employer_dashboard.php");
+            }
+            exit();
+        }
+
+        // Move uploaded file
+        if (move_uploaded_file($_FILES["photo"]["tmp_name"], $targetFile)) {
+            // Delete old photo if it exists
+            if (!empty($photoPath) && file_exists($photoPath)) {
+                unlink($photoPath);
+            }
+            $photoPath = $targetFile;
+        } else {
+            error_log("Move uploaded file failed. Target: $targetFile");
+            $_SESSION['error'] = "Failed to save uploaded file";
+            if ($jobID > 0) {
+                header("Location: post_job.php?jobID=$jobID");
+            } else {
+                header("Location: employer_dashboard.php");
+            }
+            exit();
+        }
+    }
+
+    if ($jobID > 0) {
+        // Update existing job
+        $stmt = $conn->prepare("UPDATE joblist SET 
+            jobTitle=?, description=?, Salary=?, Benefits=?, Schedule=?, 
+            requirements=?, Skills=?, posted_date=?, status=?, location=?, 
+            education=?, Experience=?, Photo=? 
+            WHERE jobID=? AND employerID=?");
+        
+        if ($stmt === false) {
+            die('Prepare failed: ' . htmlspecialchars($conn->error));
+        }
+        
+        $stmt->bind_param("ssssssssssssssi", 
+            $jobTitle, $description, $salary, $benefits, $schedule, 
+            $requirements, $skills, $posted_date, $status, $location, 
+            $education, $experience, $photoPath, $jobID, $employerID
+        );
+        
+        if ($stmt->execute()) {
+            $_SESSION['success'] = "Job updated successfully";
+        } else {
+            $_SESSION['error'] = "Error updating job: " . htmlspecialchars($stmt->error);
+        }
+        
+        $stmt->close();
+    } else {
+        // Insert new job
+        $stmt = $conn->prepare("INSERT INTO joblist 
+            (employerID, jobTitle, description, Salary, Benefits, Schedule, 
+            requirements, Skills, posted_date, status, location, education, Experience, Photo) 
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+        
+        if ($stmt === false) {
+            die('Prepare failed: ' . htmlspecialchars($conn->error));
+        }
+        
+        $stmt->bind_param("isssssssssssss", 
+            $employerID, $jobTitle, $description, $salary, $benefits, $schedule, 
+            $requirements, $skills, $posted_date, $status, $location, $education, $experience, $photoPath
+        );
+        
+        if ($stmt->execute()) {
+            $_SESSION['success'] = "Job posted successfully";
+        } else {
+            $_SESSION['error'] = "Error posting job: " . htmlspecialchars($stmt->error);
+        }
+        
+        $stmt->close();
+    }
+    
+    $conn->close();
+    
     header("Location: employer_dashboard.php");
     exit();
 }
-
-// Fetch job details
-$stmt = $conn->prepare("SELECT * FROM joblist WHERE jobID = ? AND employerID = ?");
-if ($stmt === false) {
-    die('Prepare failed: ' . htmlspecialchars($conn->error));
-}
-$stmt->bind_param("ii", $jobID, $employerID);
-$stmt->execute();
-$result = $stmt->get_result();
-
-if ($result && $result->num_rows === 1) {
-    $job = $result->fetch_assoc();
-} else {
-    $_SESSION['error'] = "Job not found or you don't have permission to edit this job";
-    header("Location: employer_dashboard.php");
-    exit();
-}
-$stmt->close();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Get and sanitize POST data

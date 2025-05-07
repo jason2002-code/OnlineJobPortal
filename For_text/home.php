@@ -10,7 +10,7 @@ include("../Functions/db_connection.php");
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>OnlineJobs.ph</title>
-    <link rel="stylesheet" href="../For_design/design.css">
+    <link rel="stylesheet" href="../For_design/Stylehome.css">
 </head>
 <body>
 
@@ -25,7 +25,11 @@ include("../Functions/db_connection.php");
             <a href="contact.php">contact us</a>
             <a href="login.php">account</a>
         </nav>
-        <a href="#" class="btn" style="margin-top: 0;">post job</a>
+        <?php if (isset($_SESSION['employerID'])): ?>
+                <a href="employer_dashboard.php?openPostJob=1" class="btn" style="margin-top: 0;">post job</a>
+            <?php else: ?>
+                <a href="login.php" class="btn" style="margin-top: 0;">post job</a>
+            <?php endif; ?>
     </section>
 </header>
 

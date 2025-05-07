@@ -56,7 +56,11 @@ $job = mysqli_fetch_assoc($result);
                 <a href="contact.php">contact us</a>
                 <a href="login.php">account</a>
             </nav>
-            <a href="#" class="btn" style="margin-top: 0;">post job</a>
+            <?php if (isset($_SESSION['employerID'])): ?>
+                <a href="employer_dashboard.php?openPostJob=1" class="btn" style="margin-top: 0;">post job</a>
+            <?php else: ?>
+                <a href="login.php" class="btn" style="margin-top: 0;">post job</a>
+            <?php endif; ?>
         </section>
 
 
@@ -99,12 +103,13 @@ $job = mysqli_fetch_assoc($result);
                 </ul>
                 </ul>
             </div>
-        <form action="" method="post" class="flex-btn" id="applyForm">
-            <input type="submit" value="apply now" name="apply" class="btn" id="applyBtn">
-<button type="submit" class="save save-job-btn">
-<input type="submit" value="save job" name="apply" class="btn" id="applyBtn">
-</button>
-        </form>
+            <div class="flex-btn">
+                <a href="apply_job.php?jobID=<?= urlencode($jobID) ?>" class="btn" id="applyBtn">Apply Now</a>
+                <form method="post" action="" style="display:inline;">
+                    <input type="hidden" name="jobID" value="<?= htmlspecialchars($jobID) ?>">
+                    <button type="submit" name="save_job" class="save save-job-btn btn">Save Job</button>
+                </form>
+            </div>
 
         <?php
         session_start();
@@ -135,6 +140,25 @@ $job = mysqli_fetch_assoc($result);
                 }
             } else {
                 echo "<p class='error'>Unauthorized delete attempt.</p>";
+            }
+        }
+
+        // Handle save job request
+        if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_job'])) {
+            if (!isset($_SESSION['user_Id'])) {
+                // User not logged in, redirect to login page
+                header("Location: login.php");
+                exit();
+            }
+            $save_jobID = intval($_POST['jobID']);
+            if (!isset($_SESSION['saved_jobs'])) {
+                $_SESSION['saved_jobs'] = [];
+            }
+            if (!in_array($save_jobID, $_SESSION['saved_jobs'])) {
+                $_SESSION['saved_jobs'][] = $save_jobID;
+                echo "<p class='success'>Job saved successfully.</p>";
+            } else {
+                echo "<p class='info'>Job already saved.</p>";
             }
         }
         ?>

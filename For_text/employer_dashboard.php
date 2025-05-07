@@ -234,15 +234,40 @@ $employer = mysqli_fetch_assoc($result_employer);
             </div>
         </div>
 
-        <div class="new-applicants">
-            <h4>New Applicants</h4>
-            <ul>
-                <?php
-                $applicants = ["Mike Tyson", "Zann Thomas", "Neeru Abraham", "John Samuel"];
-                foreach ($applicants as $name) echo "<li>$name</li>";
-                ?>
-            </ul>
-        </div>
+        <div class="new-applicants p-4 bg-white shadow rounded">
+    <h4 class="mb-4">New Applicants</h4>
+    <ul class="list-group list-group-flush">
+        <?php
+        $employerID = $_SESSION['employerID'];
+        $query = "SELECT a.applicationID, u.fullName, j.jobTitle, a.applicationDate 
+                  FROM jobapplications a
+                  JOIN joblist j ON a.jobID = j.jobID
+                  JOIN jobseeker_profiles u ON a.user_Id = u.user_Id
+                  WHERE j.employerID = ? 
+                  ORDER BY a.applicationDate DESC
+                  LIMIT 5";
+        $stmt = $conn->prepare($query);
+        $stmt->bind_param("i", $employerID);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        if ($result && $result->num_rows > 0) {
+            while ($row = $result->fetch_assoc()) {
+                echo "<li class='list-group-item d-flex justify-content-between align-items-start'>";
+                echo "<div class='ms-2 me-auto'>";
+                echo "<div class='fw-bold'>" . htmlspecialchars($row['fullName']) . "</div>";
+                echo "Applied for <strong>" . htmlspecialchars($row['jobTitle']) . "</strong> on " . date('M j, Y', strtotime($row['applicationDate']));
+                echo "</div>";
+                echo "<a href='application_review.php?applicationID=" . urlencode($row['applicationID']) . "' class='btn btn-outline-primary btn-sm'>Review</a>";
+                echo "</li>";
+            }
+        } else {
+            echo "<li class='list-group-item'>No new applications</li>";
+        }
+        $stmt->close();
+        ?>
+    </ul>
+</div>
+
 
         <div class="training">
             <h4>Ready For Training</h4>
@@ -257,6 +282,34 @@ $employer = mysqli_fetch_assoc($result_employer);
 
     <script src="script.js"></script>
     <script src="../For_design/jv/dashboard.js"></script>
+    <script>
+        // Check if URL has openPostJob=1 to open the post job modal automatically
+        document.addEventListener('DOMContentLoaded', function () {
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.get('openPostJob') === '1') {
+                const jobModal = document.getElementById('jobModal');
+                const addNewBtn = document.querySelector('.add-new');
+                if (jobModal) {
+                    jobModal.style.display = 'block';
+                }
+            }
+        });
+
+        // Close modal functionality
+        const closeBtn = document.getElementById('closeJobModal');
+        const jobModal = document.getElementById('jobModal');
+        if (closeBtn && jobModal) {
+            closeBtn.addEventListener('click', function () {
+                jobModal.style.display = 'none';
+                // Remove the query parameter from URL without reloading
+                if (window.history.replaceState) {
+                    const url = new URL(window.location);
+                    url.searchParams.delete('openPostJob');
+                    window.history.replaceState({}, document.title, url.toString());
+                }
+            });
+        }
+    </script>
 </body>
 
 </html>

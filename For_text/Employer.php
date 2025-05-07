@@ -6,6 +6,34 @@ if (isset($_POST['submit'])) {
     $email = $_POST['email'];
     $password = $_POST['pass'];
     $cpassword = $_POST['c_pass'];
+    $empdescription = $_POST['empdescription'];
+    $datestab = $_POST['datestab'];
+
+    // Handle logo upload
+    $logoPath = null;
+    if (isset($_FILES['logo']) && $_FILES['logo']['error'] == UPLOAD_ERR_OK) {
+        $uploadDir = 'uploads/';
+        if (!file_exists($uploadDir)) {
+            mkdir($uploadDir, 0755, true);
+        }
+        $filename = preg_replace("/[^a-zA-Z0-9\._-]/", "", $_FILES["logo"]["name"]);
+        $targetFile = $uploadDir . uniqid() . "_" . $filename;
+
+        $allowedTypes = ['image/jpeg', 'image/png', 'image/gif'];
+        $finfo = finfo_open(FILEINFO_MIME_TYPE);
+        $mime = finfo_file($finfo, $_FILES['logo']['tmp_name']);
+        finfo_close($finfo);
+
+        if (in_array($mime, $allowedTypes)) {
+            if (move_uploaded_file($_FILES["logo"]["tmp_name"], $targetFile)) {
+                $logoPath = $targetFile;
+            } else {
+                $msg = "Failed to upload logo.";
+            }
+        } else {
+            $msg = "Invalid logo file type. Only JPEG, PNG, GIF allowed.";
+        }
+    }
 
     if ($password !== $cpassword) {
         $msg = "Passwords do not match!";
@@ -17,7 +45,7 @@ if (isset($_POST['submit'])) {
             $msg = "User already exists!";
         } else {
             $hashed_password = password_hash($password, PASSWORD_DEFAULT);
-            $insert = "INSERT INTO `employers`(`companyName`, `Emp_email`, `Emp_Pass`) VALUES ('$company_name', '$email', '$hashed_password')";
+            $insert = "INSERT INTO `employers`(`companyName`, `Emp_email`, `Emp_Pass`, `empdescription`, `datestab`, `Logo`) VALUES ('$company_name', '$email', '$hashed_password', '$empdescription', '$datestab', '$logoPath')";
             if (mysqli_query($conn, $insert)) {
                 header('location:login.php');
                 $msg = "Registration successful!";
@@ -37,7 +65,7 @@ if (isset($_POST['submit'])) {
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Employer Registration</title>
-    <link rel="stylesheet" href="../For_design/design.css">
+   <link rel="stylesheet" href="../For_design/design.css">
 </head>
 <body>
     <header class="header">
@@ -57,7 +85,7 @@ if (isset($_POST['submit'])) {
 
     <div class="account-form-container">
         <section class="account-form">
-            <form action="" method="post">
+            <form action="" method="post" enctype="multipart/form-data">
                 <h3>Employer Registration</h3>
                 <?php if (!empty($msg)): ?>
                 <div class="error-message" style="color: red; margin-bottom: 10px;">
@@ -65,6 +93,10 @@ if (isset($_POST['submit'])) {
                 </div>
                 <?php endif; ?>
                 <input type="text" required name="company_name" maxlength="50" placeholder="Company Name" class="input">
+                <textarea required name="empdescription" maxlength="500" placeholder="Employer Description" class="input" style="height:100px;"></textarea>
+                <input type="text" required name="datestab" maxlength="20" placeholder="Date Established (YYYY-MM-DD)" class="input">
+                <label for="logo">Upload Company Logo</label>
+                <input type="file" name="logo" id="logo" accept="image/*" class="input">
                 <input type="email" required name="email" maxlength="50" placeholder="Enter your email" class="input">
                 <input type="password" required name="pass" maxlength="20" placeholder="Enter your password" class="input">
                 <input type="password" required name="c_pass" maxlength="20" placeholder="Confirm your password" class="input">

@@ -1,3 +1,8 @@
+<?php
+include("../Functions/db_connection.php");
+?>
+
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -33,7 +38,11 @@
                 <a href="contact.php">contact us</a>
                 <a href="login.php">account</a>
             </nav>
-            <a href="#" class="btn" style="margin-top: 0;">post job</a>
+            <?php if (isset($_SESSION['employerID'])): ?>
+                <a href="employer_dashboard.php?openPostJob=1" class="btn" style="margin-top: 0;">post job</a>
+            <?php else: ?>
+                <a href="login.php" class="btn" style="margin-top: 0;">post job</a>
+            <?php endif; ?>
         </section>
 
 

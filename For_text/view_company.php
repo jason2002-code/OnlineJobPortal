@@ -1,3 +1,44 @@
+<?php
+include("../Functions/db_connection.php");
+?>
+
+
+<?php
+$employerID = isset($_GET['employerID']) ? intval($_GET['employerID']) : 0;
+
+if ($employerID <= 0) {
+    echo "<p>Invalid employer ID.</p>";
+    exit();
+}
+
+// Fetch employer info
+$employerQuery = "SELECT * FROM employers WHERE employerID = ?";
+$employerStmt = $conn->prepare($employerQuery);
+$employerStmt->bind_param("i", $employerID);
+$employerStmt->execute();
+$employerResult = $employerStmt->get_result();
+
+if ($employerResult->num_rows === 0) {
+    echo "<p>Employer not found.</p>";
+    exit();
+}
+
+$employer = $employerResult->fetch_assoc();
+
+// Count jobs
+$jobCountQuery = "SELECT COUNT(*) as jobCount FROM joblist WHERE employerID = ?";
+$jobCountStmt = $conn->prepare($jobCountQuery);
+$jobCountStmt->bind_param("i", $employerID);
+$jobCountStmt->execute();
+$jobCountResult = $jobCountStmt->get_result()->fetch_assoc();
+$jobCount = $jobCountResult['jobCount'];
+
+// Count employees (fake number for now if no employee table)
+$employeeCount = 253; // Replace with a query if you have an `employees` table
+?>
+
+
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -33,7 +74,11 @@
                 <a href="contact.php">contact us</a>
                 <a href="login.php">account</a>
             </nav>
-            <a href="#" class="btn" style="margin-top: 0;">post job</a>
+            <?php if (isset($_SESSION['employerID'])): ?>
+                <a href="employer_dashboard.php?openPostJob=1" class="btn" style="margin-top: 0;">post job</a>
+            <?php else: ?>
+                <a href="login.php" class="btn" style="margin-top: 0;">post job</a>
+            <?php endif; ?>
         </section>
 
 
@@ -45,28 +90,28 @@
         <h1 class="heading">company details</h1>
 
         <div class="details">
-            <div class="info">
-            <img src="https://cdn-icons-png.freepik.com/256/3291/3291670.png?ga=GA1.1.173187149.1743160049&semt=ais_hybrid" alt="">
-            <h3>IT infosys co.</h3>
-            <p><i class="fas fa-map-marker-alt"></i>Tagbilaran, Bohol</p>
-        </div>
-    
+        <div class="info">
+        <?php
+        $logoPath = !empty($employer['Logo']) ? 'uploads/' . basename($employer['Logo']) : 'uploads/default-logo.png';
+        ?>
+        <img src="<?php echo htmlspecialchars($logoPath); ?>" alt="Company Logo" style="max-width: 300px; height: auto;" onerror="this.onerror=null;this.src='uploads/default-logo.png';" />
+    <h3><?= htmlspecialchars($employer['companyName']) ?></h3>
+    <?php // Removed undefined $row['Logo'] block ?>
 
-        <div class="description">
-            <h3>about company</h3>
-            <p>Lorem ipsum dolor sit amet consectetur adipisicing elit. Obcaecati ad culpa, quo neque,
-             odio quos quia doloribus recusandae exercitationem ex eum maxime vitae quidem porro quaerat 
-             labore, sequi qui hic.</p>
-             <p>Lorem ipsum dolor sit amet consectetur adipisicing elit. Iste possimus nisi inventore modi
-             facilis eveniet exercitationem labore atque doloremque a commodi, eius in cupiditate consectetur, 
-             fugiat sequi harum voluptate earum!</p>
-        </div>
+    <p><i class="fas fa-map-marker-alt"></i>Tagbilaran, Bohol</p>
+</div>
 
-        <ul>
-            <li>3 jobs posted</li>
-            <li>established at 21-05-2004</li>
-            <li>253 working employess</li>
-        </ul>
+<div class="description">
+    <h3>about company</h3>
+    <p><?= nl2br(htmlspecialchars($employer['empdescription'])) ?></p>
+</div>
+
+<ul>
+    <li><?= $jobCount ?> jobs posted</li>
+    <li>established at <?= htmlspecialchars($employer['DateStab']) ?></li>
+    <li><?= $employeeCount ?> working employees</li>
+</ul>
+
         
         </div>
     </section>
@@ -75,82 +120,58 @@
         <h1 class="heading">jobs they Offer</h1>
     
         <div class="box-container">
-            
-            <div class="box">
-                <div class="company">
-                    <img src="https://cdn-icons-png.freepik.com/256/3291/3291670.png?ga=GA1.1.173187149.1743160049&semt=ais_hybrid" alt="">
-    
-                    <div>
-                        <h3>IT infosys co.</h3>
-                        <p>2 days ago</p>
-                    </div>
-                </div>
-                <h3 class="job-title">senior web developer</h3>
-                <p class="location"><i class ="fas fa-map-marker-alt"></i>
-                <span>Tagbilaran, Philippines</span></p>
-                <div class="tags">
-                    <p><i class="fas fa-solid fa-peso-sign"></i><span> 10k - 25k</span> </p>
-                    <p><i class="fas fa-briefcase"></i><span>part-time</span></p>
-                    <p><i class="fas fa-clock"></i><span>day shift</span></p>
-                </div>
-                <div class="flex-btn">
-                    <a href="view_job.php" class="btn">view details</a>
-                    <button type="submit" class="far fa-heart" name="save"></button>
-                </div>
-            </div>
-    
-    
-    
+        <?php
+        $sql = "SELECT * FROM joblist ORDER BY posted_date DESC LIMIT 6";
+        $result = $conn->query($sql);
+
+        if ($result->num_rows > 0):
+            while ($row = $result->fetch_assoc()):
+$imagePath = !empty($row['Photo']) ? 
+    ('uploads/' . basename($row['Photo'])) : 
+    '../images/default-job.png';
+        ?>
         <div class="box">
             <div class="company">
-                <img src="https://cdn-icons-png.freepik.com/256/732/732190.png?ga=GA1.1.173187149.1743160049&semt=ais_hybrid" alt="">
-    
+            <img src="<?php echo htmlspecialchars($row['Photo']); ?>" alt="Job Image">
                 <div>
-                    <h3>IT infosys co.</h3>
-                    <span>2 days ago</span>
+                    <h3>
+                    <?php
+                    $employerID = $row['employerID'];
+                    $companyName = 'Company';
+                    $employerQuery = "SELECT companyName FROM employers WHERE employerID = ?";
+                    if ($stmt = $conn->prepare($employerQuery)) {
+                        $stmt->bind_param("i", $employerID);
+                        $stmt->execute();
+                        $stmt->bind_result($fetchedCompanyName);
+                        if ($stmt->fetch()) {
+                            $companyName = $fetchedCompanyName;
+                        }
+                        $stmt->close();
+                    }
+                    echo htmlspecialchars($companyName);
+                    ?>
+                    </h3>
+                    <p><?= date('F j, Y', strtotime($row['posted_date'])) ?></p>
                 </div>
             </div>
-            <h3 class="job-title">qualified developer</h3>
-            <p class="location"><i class ="fas fa-map-marker-alt"></i>
-            <span>Tagbilaran, Philippines</span></p>
+            <h3 class="job-title"><?= htmlspecialchars($row['jobTitle']) ?></h3>
+            <p class="location"><i class="fas fa-map-marker-alt"></i> <span><?= htmlspecialchars($row['location']) ?></span></p>
             <div class="tags">
-                <p><i class="fas fa-solid fa-peso-sign"></i><span> 9000</span> </p>
-                <p><i class="fas fa-briefcase"></i><span>full-time</span></p>
-                <p><i class="fas fa-clock"></i><span>flexible shifts</span></p>
+                <p><i class="fas fa-solid fa-peso-sign"></i><span><?= htmlspecialchars($row['Salary']) ?></span></p>
+                <p><i class="fas fa-briefcase"></i><span><?= htmlspecialchars($row['status']) ?></span></p>
+                <p><i class="fas fa-clock"></i><span><?= htmlspecialchars($row['Schedule']) ?></span></p>
             </div>
             <div class="flex-btn">
-                <a href="view_job.php" class="btn">view details</a>
-                <button class="far fa-heart"></button>
+                <a href="view_job.php?jobID=<?= $row['jobID'] ?>" class="btn">View Details</a>
+                <button type="submit" class="far fa-heart" name="save"></button>
             </div>
         </div>
-    
-    
-    
-    
-    
-    
-        <div class="box">
-            <div class="company">
-                <img src="https://cdn-icons-png.freepik.com/256/721/721671.png?ga=GA1.1.173187149.1743160049&semt=ais_hybrid" alt="">
-    
-                <div>
-                    <h3>IT infosys co.</h3>
-                    <span>posted today</span>
-                </div>
-            </div>
-            <h3 class="job-title">javascript developer</h3>
-            <p class="location"><i class ="fas fa-map-marker-alt"></i>
-            <span>Tagbilaran, Philippines</span></p>
-            <div class="tags">
-                <p><i class="fas fa-solid fa-peso-sign"></i><span> 10k - 25k</span> </p>
-                <p><i class="fas fa-briefcase"></i><span>internship</span></p>
-                <p><i class="fas fa-clock"></i><span>night shift</span></p>
-            </div>
-            <div class="flex-btn">
-                <a href="view_job.php" class="btn">view details</a>
-                <button class="far fa-heart"></button>
-            </div>
-        </div>
+        <?php
+            endwhile;
+        else:
+            echo "<p style='text-align:center;'>No job postings found.</p>";
+        endif;
+        ?>
     
     
     </div>

@@ -1,0 +1,351 @@
+<?php
+session_start();
+include("../Functions/db_connection.php");
+
+if (!isset($_SESSION['employerID'])) {
+    header("Location: login.php");
+    exit;
+}
+
+$employerID = $_SESSION['employerID'];
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $applicationID = intval($_POST['applicationID']);
+    $decision = $_POST['decision'];
+    $feedback = trim($_POST['feedback']);
+
+    // Validate decision
+    $valid_decisions = ['accepted', 'rejected', 'shortlisted', 'pending'];
+    if (!in_array($decision, $valid_decisions)) {
+        $error = "Invalid decision selected.";
+    } else {
+        // Check if review exists
+        $checkSql = "SELECT reviewID FROM application_review WHERE applicationID = ? AND employerID = ?";
+        $stmt = $conn->prepare($checkSql);
+        $stmt->bind_param("ii", $applicationID, $employerID);
+        $stmt->execute();
+        $stmt->store_result();
+
+        if ($stmt->num_rows > 0) {
+            // Update existing review
+            $stmt->bind_result($reviewID);
+            $stmt->fetch();
+            $stmt->close();
+
+            $updateSql = "UPDATE application_review SET decision = ?, feedback = ?, reviewDate = NOW() WHERE reviewID = ?";
+            $updateStmt = $conn->prepare($updateSql);
+            $updateStmt->bind_param("ssi", $decision, $feedback, $reviewID);
+            $updateStmt->execute();
+            $updateStmt->close();
+
+            // Update jobapplications.Status1 with decision
+            $updateStatusSql = "UPDATE jobapplications SET Status1 = ? WHERE applicationID = ?";
+            $updateStatusStmt = $conn->prepare($updateStatusSql);
+            $updateStatusStmt->bind_param("si", $decision, $applicationID);
+            $updateStatusStmt->execute();
+            $updateStatusStmt->close();
+
+            $success = "Review updated successfully.";
+        } else {
+            // Insert new review
+            $stmt->close();
+            $insertSql = "INSERT INTO application_review (applicationID, employerID, decision, feedback, reviewDate) VALUES (?, ?, ?, ?, NOW())";
+            $insertStmt = $conn->prepare($insertSql);
+            $insertStmt->bind_param("iiss", $applicationID, $employerID, $decision, $feedback);
+            $insertStmt->execute();
+            $insertStmt->close();
+
+            // Update jobapplications.Status1 with decision
+            $updateStatusSql = "UPDATE jobapplications SET Status1 = ? WHERE applicationID = ?";
+            $updateStatusStmt = $conn->prepare($updateStatusSql);
+            $updateStatusStmt->bind_param("si", $decision, $applicationID);
+            $updateStatusStmt->execute();
+            $updateStatusStmt->close();
+
+            $success = "Review submitted successfully.";
+        }
+    }
+}
+
+// Fetch applications for this employer's jobs
+$sql = "SELECT ja.applicationID, ja.applicationDate, ja.Status1, js.fullName AS jobseekerName, j.jobTitle
+        FROM jobapplications ja
+        JOIN joblist j ON ja.jobID = j.jobID
+        JOIN jobseeker_profiles js ON ja.user_Id = js.user_Id
+        WHERE j.employerID = ?
+        ORDER BY ja.applicationDate DESC";
+
+$stmt = $conn->prepare($sql);
+$stmt->bind_param("i", $employerID);
+$stmt->execute();
+$result = $stmt->get_result();
+
+$applications = [];
+while ($row = $result->fetch_assoc()) {
+    $applications[] = $row;
+}
+$stmt->close();
+
+// Fetch existing reviews for these applications
+$applicationIDs = array_column($applications, 'applicationID');
+$reviews = [];
+if (count($applicationIDs) > 0) {
+    $placeholders = implode(',', array_fill(0, count($applicationIDs), '?'));
+    $types = str_repeat('i', count($applicationIDs));
+    $sqlReviews = "SELECT * FROM application_review WHERE applicationID IN ($placeholders) AND employerID = ?";
+    $stmt = $conn->prepare($sqlReviews);
+    $params = array_merge($applicationIDs, [$employerID]);
+    $stmt->bind_param($types . 'i', ...$params);
+    $stmt->execute();
+    $res = $stmt->get_result();
+    while ($row = $res->fetch_assoc()) {
+        $reviews[$row['applicationID']] = $row;
+    }
+    $stmt->close();
+}
+?>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Application Review</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" />
+    <link rel="stylesheet" href="../For_design/Jobseekstyle.css" />
+</head>
+<body>
+<nav class="navbar navbar-expand-lg navbar-light">
+    <div class="container">
+        <a class="navbar-brand" href="employer_dashboard.php"><i class="fas fa-briefcase me-2"></i>Upwork.</a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" 
+            aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarNav">
+            <ul class="navbar-nav ms-auto">
+                <li class="nav-item position-relative">
+                    <a class="nav-link" href="#"><i class="fas fa-bell me-1"></i><span class="notification-badge">3</span></a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="employer_dashboard.php"><i class="fas fa-user me-1"></i>Dashboard</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link active" href="application_review.php"><i class="fas fa-file-alt me-1"></i>Application Review</a>
+                </li>
+                <li class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                        <i class="fas fa-cog me-1"></i>Settings
+                    </a>
+                    <ul class="dropdown-menu" aria-labelledby="navbarDropdown">
+                        <li><a class="dropdown-item" href="#">Account Settings</a></li>
+                        <li><a class="dropdown-item" href="#">Privacy</a></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item" href="logout.php">Logout</a></li>
+                    </ul>
+                </li>
+            </ul>
+        </div>
+    </div>
+</nav>
+
+<div class="container mt-5">
+    <h2>Application Review</h2>
+    <?php if (isset($error)): ?>
+        <div class="alert alert-danger"><?php echo htmlspecialchars($error); ?></div>
+    <?php elseif (isset($success)): ?>
+        <div class="alert alert-success"><?php echo htmlspecialchars($success); ?></div>
+    <?php endif; ?>
+
+    <?php if (count($applications) === 0): ?>
+        <p>No applications found for your jobs.</p>
+    <?php else: ?>
+        <table class="table table-bordered table-hover">
+            <thead>
+                <tr>
+                    <th>Application ID</th>
+                    <th>Job Title</th>
+                    <th>Jobseeker</th>
+                    <th>Applied On</th>
+                    <th>Status</th>
+                    <th>Feedback</th>
+                    <th>Review Date</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                <?php foreach ($applications as $app): 
+                    $review = $reviews[$app['applicationID']] ?? null;
+                    $finalStatus = $review ? htmlspecialchars($review['decision']) : htmlspecialchars($app['Status1']);
+                ?>
+                <tr>
+                    <td><?php echo htmlspecialchars($app['applicationID']); ?></td>
+                    <td><?php echo htmlspecialchars($app['jobTitle']); ?></td>
+                    <td><?php echo htmlspecialchars($app['jobseekerName']); ?></td>
+                    <td><?php echo date('M j, Y', strtotime($app['applicationDate'])); ?></td>
+                    <td><?php echo $finalStatus; ?></td>
+                    <td><?php echo $review ? nl2br(htmlspecialchars($review['feedback'])) : ''; ?></td>
+                    <td><?php echo $review ? htmlspecialchars($review['reviewDate']) : ''; ?></td>
+                    <td>
+                        <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#reviewModal" 
+                            data-applicationid="<?php echo $app['applicationID']; ?>"
+                            data-decision="<?php echo $review ? $review['decision'] : 'pending'; ?>"
+                            data-feedback="<?php echo $review ? htmlspecialchars($review['feedback']) : ''; ?>">
+                            Review
+                        </button>
+                    </td>
+                </tr>
+                <?php endforeach; ?>
+            </tbody>
+        </table>
+    <?php endif; ?>
+</div>
+
+<!-- Review Modal -->
+<div class="modal fade" id="reviewModal" tabindex="-1" aria-labelledby="reviewModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <form method="POST" class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="reviewModalLabel">Review Application</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+          <input type="hidden" name="applicationID" id="applicationID" value="">
+          <div class="row">
+            <div class="col-md-6">
+              <h6>Jobseeker Profile</h6>
+              <div id="profileDetails" class="d-flex flex-column align-items-start">
+                <!-- Profile details will be loaded here -->
+                <div class="d-flex align-items-center mb-3">
+                  <img id="profilePic" src="" alt="Profile Picture" class="rounded-circle me-3" style="width: 80px; height: 80px; object-fit: cover; display: none;">
+                  <h5 id="profileFullName" class="mb-0"></h5>
+                </div>
+                <p><strong>Bio:</strong></p>
+                <p id="profileBio"></p>
+                <p><strong>Age:</strong> <span id="profileAge"></span></p>
+                <p><strong>Gender:</strong> <span id="profileGender"></span></p>
+                <p><strong>Address:</strong> <span id="profileAddress"></span></p>
+                <p><strong>Skills:</strong></p>
+                <div id="profileSkills" class="mb-3"></div>
+                <p><strong>Summary:</strong></p>
+                <p id="profileSummary"></p>
+                <p><strong>Resume:</strong></p>
+                <p id="profileResume"><a href="#" target="_blank" id="resumeLink">View Resume</a></p>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <h6>Review Details</h6>
+              <div class="mb-3">
+                  <label for="decision" class="form-label">Status</label>
+                  <select class="form-select" id="decision" name="decision" required>
+                      <option value="accepted">Accepted</option>
+                      <option value="rejected">Rejected</option>
+                  </select>
+              </div>
+              <div class="mb-3">
+                  <label for="feedback" class="form-label">Feedback</label>
+                  <textarea class="form-control" id="feedback" name="feedback" rows="4" required></textarea>
+              </div>
+            </div>
+          </div>
+      </div>
+      <div class="modal-footer">
+        <button type="submit" class="btn btn-primary">Submit Review</button>
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+function escapeHtml(text) {
+  var map = {
+    '&': '&amp;',
+    '<': '<',
+    '>': '>',
+    '"': '"',
+    "'": '&#039;'
+  };
+  return text.replace(/[&<>"']/g, function(m) { return map[m]; });
+}
+
+var reviewModal = document.getElementById('reviewModal');
+reviewModal.addEventListener('show.bs.modal', function (event) {
+  var button = event.relatedTarget;
+  var applicationID = button.getAttribute('data-applicationid');
+  var decision = button.getAttribute('data-decision');
+  var feedback = button.getAttribute('data-feedback');
+
+  var modalApplicationID = reviewModal.querySelector('#applicationID');
+  var modalDecision = reviewModal.querySelector('#decision');
+  var modalFeedback = reviewModal.querySelector('#feedback');
+
+  modalApplicationID.value = applicationID;
+  modalDecision.value = decision;
+  modalFeedback.value = feedback;
+
+  // Fetch profile details via AJAX
+  fetch('get_jobseeker_profile.php?applicationID=' + encodeURIComponent(applicationID))
+    .then(response => response.json())
+    .then(data => {
+      const profilePic = document.getElementById('profilePic');
+      if (data.profilePic_url) {
+        profilePic.src = data.profilePic_url;
+        profilePic.style.display = 'block';
+      } else {
+        profilePic.style.display = 'none';
+      }
+      document.getElementById('profileFullName').textContent = data.fullName || '';
+      document.getElementById('profileBio').textContent = data.bio || '';
+      document.getElementById('profileAge').textContent = data.age || '';
+      document.getElementById('profileGender').textContent = data.gender || '';
+      document.getElementById('profileAddress').textContent = data.address || '';
+      // Render skills as tags
+      const skillsContainer = document.getElementById('profileSkills');
+      skillsContainer.innerHTML = '';
+      if (data.skills_array && data.skills_array.length > 0) {
+        data.skills_array.forEach(skill => {
+          const span = document.createElement('span');
+          span.className = 'badge bg-secondary me-1 mb-1';
+          span.textContent = skill;
+          skillsContainer.appendChild(span);
+        });
+      } else {
+        skillsContainer.textContent = 'No skills listed.';
+      }
+      document.getElementById('profileSummary').textContent = data.summary || '';
+      if (data.resume_url) {
+        const resumeLink = document.getElementById('resumeLink');
+        resumeLink.href = data.resume_url;
+        resumeLink.style.display = 'inline';
+      } else {
+        document.getElementById('profileResume').textContent = 'No resume uploaded.';
+      }
+    })
+    .catch(() => {
+      document.getElementById('profileDetails').textContent = 'Failed to load profile details.';
+    });
+});
+</script>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+var reviewModal = document.getElementById('reviewModal');
+reviewModal.addEventListener('show.bs.modal', function (event) {
+  var button = event.relatedTarget;
+  var applicationID = button.getAttribute('data-applicationid');
+  var decision = button.getAttribute('data-decision');
+  var feedback = button.getAttribute('data-feedback');
+
+  var modalApplicationID = reviewModal.querySelector('#applicationID');
+  var modalDecision = reviewModal.querySelector('#decision');
+  var modalFeedback = reviewModal.querySelector('#feedback');
+
+  modalApplicationID.value = applicationID;
+  modalDecision.value = decision;
+  modalFeedback.value = feedback;
+});
+
+</script>
+</body>
+</html>

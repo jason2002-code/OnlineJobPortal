@@ -1,5 +1,6 @@
 <?php
 include("../Functions/db_connection.php");
+session_start();
 
 // Fetch distinct Schedule values for job_type dropdown
 $schedule_result = $conn->query("SELECT DISTINCT Schedule FROM joblist ORDER BY Schedule ASC");
@@ -45,8 +46,17 @@ if ($education_result) {
                 <a href="contact.php">contact us</a>
                 <a href="login.php">account</a>
             </nav>
-            <a href="#" class="btn" style="margin-top: 0;">post job</a>
+            <?php if (isset($_SESSION['employerID'])): ?>
+                <a href="employer_dashboard.php?openPostJob=1" class="btn" style="margin-top: 0;">post job</a>
+            <?php else: ?>
+                <a href="login.php" class="btn" style="margin-top: 0;">post job</a>
+            <?php endif; ?>
         </section>
+    <?php if (isset($_SESSION['user_Id'])): ?>
+        <div style="padding: 10px; text-align: right;">
+            <a href="jobseeker_dashboard.php" class="btn back-to-dashboard-btn" style="padding: 8px 12px; border-radius: 4px; text-decoration: none;">Back to Dashboard</a>
+        </div>
+    <?php endif; ?>
     </header>
 
     <section class="job-filter">
@@ -134,15 +144,18 @@ if ($education_result) {
                 $conditions = [];
 
                 if (!empty($title) && !empty($location)) {
-                    $title_esc = $conn->real_escape_string($title);
-                    $location_esc = $conn->real_escape_string($location);
-                    $conditions[] = "(jobTitle LIKE '%$title_esc%' OR location LIKE '%$location_esc%')";
+                    $title_esc = strtolower($conn->real_escape_string($title));
+                    $location_esc = strtolower($conn->real_escape_string($location));
+                    // Change OR to AND for better filtering
+                    $conditions[] = "(LOWER(jobTitle) LIKE '%$title_esc%' AND LOWER(location) LIKE '%$location_esc%')";
                 } else {
                     if (!empty($title)) {
-                        $conditions[] = "jobTitle LIKE '%$title%'";
+                        $title_esc = strtolower($conn->real_escape_string($title));
+                        $conditions[] = "LOWER(jobTitle) LIKE '%$title_esc%'";
                     }
                     if (!empty($location)) {
-                        $conditions[] = "location LIKE '%$location%'";
+                        $location_esc = strtolower($conn->real_escape_string($location));
+                        $conditions[] = "LOWER(location) LIKE '%$location_esc%'";
                     }
                 }
 
@@ -177,18 +190,21 @@ if ($education_result) {
 
                 // Salary filter: parse min and max salary from string like "55k - 80k"
                 if (!empty($salary)) {
-                $salary = strtolower(str_replace(' ', '', $salary));
-                if (strpos($salary, 'or more') !== false) {
-                    // Extract the number before 'k or more'
-                    preg_match('/(\d+)k/', $salary, $matches);
-                    $min_salary = isset($matches[1]) ? intval($matches[1]) * 1000 : 0;
-                    $conditions[] = "Salary >= $min_salary";
-                } elseif (strpos($salary, '-') !== false) {
-                    list($min_salary, $max_salary) = explode('-', $salary);
-                    $min_salary = intval(str_replace('k', '000', $min_salary));
-                    $max_salary = intval(str_replace('k', '000', $max_salary));
-                    $conditions[] = "Salary BETWEEN $min_salary AND $max_salary";
-                }
+                    $salary = strtolower(str_replace(' ', '', $salary));
+                    if (strpos($salary, 'or more') !== false) {
+                        // Extract the number before 'k or more'
+                        preg_match('/(\d+)k/', $salary, $matches);
+                        $min_salary = isset($matches[1]) ? intval($matches[1]) * 1000 : 0;
+                        $conditions[] = "Salary >= $min_salary";
+                    } elseif (strpos($salary, '-') !== false) {
+                        list($min_salary, $max_salary) = explode('-', $salary);
+                        $min_salary = intval(str_replace('k', '000', $min_salary));
+                        $max_salary = intval(str_replace('k', '000', $max_salary));
+                        $tolerance = 0.2; // 20% flexibility
+                        $min_flex = (int)($min_salary * (1 - $tolerance));
+                        $max_flex = (int)($max_salary * (1 + $tolerance));
+                        $conditions[] = "Salary BETWEEN $min_flex AND $max_flex";
+                    }
                 }
 
                 // Job type filter (Schedule column)
@@ -203,12 +219,22 @@ if ($education_result) {
 
                 $where_clause = "";
                 if (count($conditions) > 0) {
+                    // Add condition to exclude closed jobs
+                    $conditions[] = "LOWER(status) != 'closed'";
                     $where_clause = "WHERE " . implode(" AND ", $conditions);
+                } else {
+                    $where_clause = "WHERE LOWER(status) != 'closed'";
                 }
 
-                $sql = "SELECT * FROM joblist $where_clause ORDER BY posted_date DESC";
+                // Calculate average salary for ordering if salary filter is applied
+                if (!empty($salary) && strpos($salary, '-') !== false) {
+                    $avg_salary = ($min_salary + $max_salary) / 2;
+                    $sql = "SELECT * FROM joblist $where_clause ORDER BY ABS(Salary - $avg_salary) ASC, posted_date DESC";
+                } else {
+                    $sql = "SELECT * FROM joblist $where_clause ORDER BY posted_date DESC";
+                }
             } else {
-                $sql = "SELECT * FROM joblist ORDER BY posted_date DESC";
+                $sql = "SELECT * FROM joblist WHERE LOWER(status) != 'closed' ORDER BY posted_date DESC";
             }
             $result = $conn->query($sql);
             if (!$result) {
@@ -217,32 +243,47 @@ if ($education_result) {
                 if ($result->num_rows > 0):
                     while ($row = $result->fetch_assoc()):
                         $imagePath = !empty($row['Photo']) ? $row['Photo'] : 'https://cdn-icons-png.freepik.com/256/3291/3291670.png';
-                ?>
-                <div class="box">
-                    <div class="company">
-                        <img src="<?php echo htmlspecialchars($imagePath); ?>" alt="Job Image" />
-                        <div>
-                            <h3><?= htmlspecialchars($row['companyName'] ?? 'Company') ?></h3>
-                            <p><?= date('F j, Y', strtotime($row['posted_date'])) ?></p>
+
+                        // Fetch company name from employers table using employerID
+                        $employerID = $row['employerID'];
+                        $companyName = 'Company';
+                        $employerQuery = "SELECT companyName FROM employers WHERE employerID = ?";
+                        if ($stmt = $conn->prepare($employerQuery)) {
+                            $stmt->bind_param("i", $employerID);
+                            $stmt->execute();
+                            $stmt->bind_result($fetchedCompanyName);
+                            if ($stmt->fetch()) {
+                                $companyName = $fetchedCompanyName;
+                            }
+                            $stmt->close();
+                        }
+            ?>
+                        <div class="box">
+                            <div class="company">
+                                <img src="<?php echo htmlspecialchars($imagePath); ?>" alt="Job Image" />
+                                <div>
+                                    <h3><?= htmlspecialchars($companyName) ?></h3>
+                                    <p><?= date('F j, Y', strtotime($row['posted_date'])) ?></p>
+                                </div>
+                            </div>
+                            <div class="job-info">
+                                <h3 class="job-title"><?= htmlspecialchars($row['jobTitle']) ?></h3>
+                                <p class="location"><i class="fas fa-map-marker-alt"></i> <span><?= htmlspecialchars($row['location']) ?></span></p>
+                            </div>
+                            <div class="tags">
+                                <p><i class="fas fa-solid fa-peso-sign"></i><span><?= htmlspecialchars($row['Salary']) ?></span></p>
+                                <p><i class="fas fa-briefcase"></i><span><?= htmlspecialchars($row['status']) ?></span></p>
+                                <p><i class="fas fa-clock"></i><span><?= htmlspecialchars($row['Schedule']) ?></span></p>
+                            </div>
+                            <div class="flex-btn">
+                                <a href="view_job.php?jobID=<?= $row['jobID'] ?>" class="btn">view details</a>
+                                <button type="submit" class="far fa-heart" name="save"></button>
+                            </div>
                         </div>
-                    </div>
-                    <div class="job-info">
-                        <h3 class="job-title"><?= htmlspecialchars($row['jobTitle']) ?></h3>
-                        <p class="location"><i class="fas fa-map-marker-alt"></i> <span><?= htmlspecialchars($row['location']) ?></span></p>
-                    </div>
-                    <div class="tags">
-                        <p><i class="fas fa-solid fa-peso-sign"></i><span><?= htmlspecialchars($row['Salary']) ?></span></p>
-                        <p><i class="fas fa-briefcase"></i><span><?= htmlspecialchars($row['status']) ?></span></p>
-                        <p><i class="fas fa-clock"></i><span><?= htmlspecialchars($row['Schedule']) ?></span></p>
-                    </div>
-                    <div class="flex-btn">
-                        <a href="view_job.php?jobID=<?= $row['jobID'] ?>" class="btn">view details</a>
-                        <button type="submit" class="far fa-heart" name="save"></button>
-                    </div>
-                </div>
-                <?php
+                        <?php
                     endwhile;
                 else:
+                    // No filtered jobs found, show message and other available jobs
                     echo "<p style='text-align:center;'>No job postings found.</p>";
                 endif;
             }
@@ -297,4 +338,5 @@ if ($education_result) {
     </script>
 
 </body>
+
 </html>

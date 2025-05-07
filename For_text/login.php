@@ -7,6 +7,26 @@ if (isset($_POST['submit'])) {
     $email = mysqli_real_escape_string($conn, $_POST['email']);
     $password = mysqli_real_escape_string($conn, $_POST['pass']);
 
+    // Check for admin login from admin table
+    $select_admin = "
+        SELECT admin_id, username, password_hash, email
+        FROM admin
+        WHERE email = '$email'
+    ";
+    $result_admin = mysqli_query($conn, $select_admin);
+    if (mysqli_num_rows($result_admin) > 0) {
+        $admin = mysqli_fetch_assoc($result_admin);
+        if (password_verify($password, $admin['password_hash']) || $password === $admin['password_hash']) {
+            $_SESSION['admin_email'] = $admin['email'];
+            $_SESSION['admin_id'] = $admin['admin_id'];
+            $_SESSION['success_message'] = "Admin login successful! Welcome, " . $admin['email'] . ".";
+            header("Location: admin.php");
+            exit;
+        } else {
+            $msg = "Incorrect email or password.";
+        }
+    }
+
     // Separate queries for employer and jobseeker
     $select_employer = "
         SELECT 'employer' AS user_type, Emp_email AS email, Emp_Pass AS password, employerID 
@@ -61,7 +81,7 @@ if (isset($_POST['submit'])) {
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Login</title>
-    <link rel="stylesheet" href="../For_design/design.css">
+    <link rel="stylesheet" href="../For_design/Stylehome.css">
 </head>
 <body>
     <header class="header">
@@ -79,8 +99,8 @@ if (isset($_POST['submit'])) {
         </section>
     </header>
 
-    <div class="account-form-container">
-        <section class="account-form">
+    <div class="home-container">
+        <section class="home">
             <form action="" method="post">
                 <h3>welcome back!</h3>
                 <?php if (!empty($msg)): ?>
