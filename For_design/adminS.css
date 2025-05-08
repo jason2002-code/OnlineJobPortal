@@ -1,121 +1,41 @@
 body {
-    font-family: 'Arial', sans-serif;
-    margin: 0;
-    padding: 0;
-    background-color: #f4f4f9;
-    color: #333;
+    font-family: 'Poppins', sans-serif;
 }
-.navbar {
-    background: linear-gradient(120deg, #007bff, #0056b3);
-    color: #fff;
-    padding: 10px 20px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    position: fixed;
-    width: 100%;
-    top: 0;
-    left: 0;
-    z-index: 1000;
-}
-.navbar h1 {
-    margin: 0;
-}
-.navbar nav ul {
-    list-style: none;
-    display: flex;
-    gap: 10px;
-}
-.navbar nav ul li {
-    margin: 0;
-}
-.navbar nav ul li a {
-    color: #fff;
-    text-decoration: none;
+
+.navbar-nav .nav-link {
+    color: #0c0c0c !important;
+    transition: background-color 0.3s ease;
+    border-radius: 4px;
     padding: 8px 12px;
-    transition: background-color 0.3s;
-    border-radius: 4px;
 }
-.navbar nav ul li a:hover {
-    background-color: #22282e;
+
+.navbar-nav .nav-link:hover {
+    background-color: rgba(78, 115, 223, 0.8);
+    color: #f8f5f5 !important;
 }
-.navbar nav ul li a.logout {
-    margin-left: 15px; 
+
+.navbar .nav-link {
+    color: #fff !important;
+    font-weight: 500;
 }
-.dashboard {
-    width: 95%;
-    max-width: 600px;
-    margin: 60px auto 20px;
-    background-color: #fff;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-    border-radius: 8px;
-    overflow: hidden;
-    padding: 20px;
+
+.navbar .nav-link:hover {
+    text-decoration: underline;
 }
-.section {
-    display: none;
+
+.navbar-brand {
+    font-weight: 600;
 }
-.section.active {
-    display: block;
-}
-.section h2 {
-    margin-top: 0;
-    font-size: 1.5em;
-    color: #333;
-}
-.section ul {
-    list-style: none;
-    padding: 0;
-}
-.section ul li {
-    background-color: #f9f9f9;
-    margin: 10px 0;
-    padding: 15px;
-    border-radius: 4px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    transition: background-color 0.3s;
-}
-.section ul li:hover {
-    background-color: #e0e0e0;
-}
-.section ul li button {
-    background-color: #007bff;
-    color: #fff;
-    border: none;
-    padding: 8px 12px;
-    border-radius: 4px;
-    cursor: pointer;
-    transition: background-color 0.3s;
-}
-.section ul li button:hover {
-    background-color: #0056b3;
-}
-@media (max-width: 600px) {
-    .navbar h1 {
-        font-size: 1.2em;
-    }
-    .navbar nav ul {
-        display: flex;
+
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .navbar-nav {
         flex-direction: column;
-        align-items: flex-end;
-    }
-    .navbar nav ul li a {
-        display: block;
         width: 100%;
-        text-align: right;
     }
-    .navbar nav ul li a.logout {
-        margin-left: 0;
-    }
-    .section h2 {
-        font-size: 1.2em;
-    }
-    .section ul li {
+    .navbar-nav .nav-link {
         padding: 10px;
-    }
-    .section ul li button {
-        padding: 6px 10px;
+        text-align: center;
     }
 }

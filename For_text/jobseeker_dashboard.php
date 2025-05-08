@@ -29,6 +29,23 @@ if ($result && mysqli_num_rows($result) > 0) {
     ];
 }
 
+// Fetch notifications for the logged-in user
+$notifications = [];
+$unreadCount = 0;
+$notifQuery = "SELECT notificationID, message, isRead, dateSent FROM notifications WHERE userID = ? ORDER BY dateSent DESC LIMIT 10";
+if ($stmt = $conn->prepare($notifQuery)) {
+    $stmt->bind_param("i", $user_Id);
+    $stmt->execute();
+    $notifResult = $stmt->get_result();
+    while ($notif = $notifResult->fetch_assoc()) {
+        $notifications[] = $notif;
+        if ($notif['isRead'] == 0) {
+            $unreadCount++;
+        }
+    }
+    $stmt->close();
+}
+
 // Parse skills into array
 $skills = array_filter(array_map('trim', explode(',', $profile['skills'])));
 
@@ -90,8 +107,28 @@ $showProfileReminder = empty($profile['fullName']) || empty($profile['bio']) || 
             </button>
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav ms-auto">
-                    <li class="nav-item position-relative">
-                        <a class="nav-link" href="#"><i class="fas fa-bell me-1"></i><span class="notification-badge">3</span></a>
+                    <li class="nav-item dropdown position-relative">
+                        <a class="nav-link dropdown-toggle" href="#" id="notificationDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="fas fa-bell me-1"></i>
+                            <?php if ($unreadCount > 0): ?>
+                                <span class="notification-badge"><?php echo $unreadCount; ?></span>
+                            <?php endif; ?>
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="notificationDropdown" style="width: 300px; max-height: 400px; overflow-y: auto;">
+                            <li class="dropdown-header">Notifications</li>
+                            <?php if (count($notifications) > 0): ?>
+                                <?php foreach ($notifications as $notif): ?>
+                                    <li>
+                                        <a class="dropdown-item<?php echo $notif['isRead'] == 0 ? ' fw-bold' : ''; ?>" href="#">
+                                            <?php echo htmlspecialchars($notif['message']); ?><br>
+                                            <small class="text-muted"><?php echo date('M j, Y H:i', strtotime($notif['dateSent'])); ?></small>
+                                        </a>
+                                    </li>
+                                <?php endforeach; ?>
+                            <?php else: ?>
+                                <li><span class="dropdown-item-text">No notifications found.</span></li>
+                            <?php endif; ?>
+                        </ul>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link active" href="jobseeker_dashboard.php"><i class="fas fa-user me-1"></i>Profile</a>
