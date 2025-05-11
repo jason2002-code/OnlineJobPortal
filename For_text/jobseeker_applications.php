@@ -107,13 +107,59 @@ $stmt->close();
                             <td><?php echo htmlspecialchars($app['companyName']); ?></td>
                             <td><?php echo date('F j, Y', strtotime($app['applicationDate'])); ?></td>
                             <td><?php echo htmlspecialchars($app['status']); ?></td>
-                            <td><a href="view_job.php?jobID=<?php echo urlencode($app['applicationID']); ?>" class="btn btn-sm btn-outline-primary">View</a></td>
+                            <td>
+                                <a href="view_job.php?jobID=<?php echo urlencode($app['applicationID']); ?>" class="btn btn-sm btn-outline-primary me-1">View</a>
+                                <button type="button" class="btn btn-sm btn-outline-warning remove-application-btn" data-application-id="<?php echo htmlspecialchars($app['applicationID']); ?>">Remove</button>
+                            </td>
                         </tr>
                     <?php endforeach; ?>
-                </tbody>
+</tbody>
             </table>
         <?php endif; ?>
         <a href="jobseeker_dashboard.php" class="btn btn-secondary mt-3">Back to Dashboard</a>
+
+        <?php if (isset($_SESSION['message'])): ?>
+            <div class="alert alert-info mt-3" role="alert">
+                <?php 
+                    echo $_SESSION['message']; 
+                    unset($_SESSION['message']);
+                ?>
+            </div>
+        <?php endif; ?>
+
     </div>
+
+    <script>
+        document.querySelectorAll('.remove-application-btn').forEach(button => {
+            button.addEventListener('click', function() {
+                const applicationId = this.getAttribute('data-application-id');
+                if (confirm('Are you sure you want to remove this application?')) {
+                    fetch('delete_application.php', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/x-www-form-urlencoded',
+                        },
+                        body: 'applicationID=' + encodeURIComponent(applicationId)
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            // Remove the row from the table
+                            const row = this.closest('tr');
+                            if (row) {
+                                row.remove();
+                            }
+                        } else {
+                            alert(data.message || 'Failed to remove application. Please try again.');
+                        }
+                    })
+                    .catch(error => {
+                        alert('Failed to remove application. Please try again.');
+                        console.error('Error:', error);
+                    });
+                }
+            });
+        });
+    </script>
 </body>
 </html>

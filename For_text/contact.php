@@ -24,7 +24,7 @@ if (isset($_POST['send'])) {
     }
 
     // Insert into notifications table
-    $insertQuery = "INSERT INTO notifications (userID, receiverRole, message, isRead, dateSent) VALUES (?, ?, ?, 0, NOW())";
+    $insertQuery = "INSERT INTO notifications (user_Id, receiverRole, message, isRead, dateSent) VALUES (?, ?, ?, 0, NOW())";
     if ($stmt = $conn->prepare($insertQuery)) {
         $stmt->bind_param("iss", $userID, $receiverRole, $message);
         if ($stmt->execute()) {

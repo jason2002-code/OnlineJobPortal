@@ -10,27 +10,27 @@ include("../Functions/db_connection.php");
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-   
-   
+
+
     <title>about</title>
 
     <link rel="stylesheet" href="../For_design/design.css">
-    
+
 
 </head>
 
-<body>
+</body>
 
 
     <header class="header">
         <section class="flex">
             <div id="menu-btn" class="fas fa-bars-staggered"></div>
-           
-           
-            <a href="home.html" class="logo"><i class="fas fa-briefcase"></i> 
+
+
+            <a href="home.html" class="logo"><i class="fas fa-briefcase"></i>
                 Upwork.</a>
-            
-            
+
+
             <nav class="navbar">
                 <a href="home.php">home</a>
                 <a href="about.php">about us</a>
@@ -47,165 +47,143 @@ include("../Functions/db_connection.php");
 
 
     </header>
-     
+
+    <?php include 'feedback_popup.php'; ?>
 
     <div class="section-title">about us</div>
 
 
-       <section class="about">
+    <section class="about">
         <img src="https://i.pinimg.com/736x/51/11/db/5111db85e1ed27212a67f6d7146b5b2e.jpg" alt="">
         <div class="box">
 
             <h3>why choose us?</h3>
-            <p>In the competitive landscape of job portals, we stand out by prioritizing both talent and opportunity. 
-            For job seekers, we offer a curated selection of diverse roles, personalized matching, and resources to empower career growth. 
-            For employers, we provide access to a pool of vetted professionals, streamlined hiring tools, and dedicated support to find the perfect fit. 
-            Our platform fosters genuine connections, ensuring a seamless experience for all, making us the premier choice for your career or hiring needs.</p>
-              
+            <p>In the competitive landscape of job portals, we stand out by prioritizing both talent and opportunity.
+                For job seekers, we offer a curated selection of diverse roles, personalized matching, and resources to empower career growth.
+                For employers, we provide access to a pool of vetted professionals, streamlined hiring tools, and dedicated support to find the perfect fit.
+                Our platform fosters genuine connections, ensuring a seamless experience for all, making us the premier choice for your career or hiring needs.</p>
+
             <p> "Whether you're a skilled freelancer seeking rewarding projects or a business in need of top-tier talent, our platform is designed for your success.
-                 We offer a seamless experience, connecting you with vetted professionals and diverse opportunities globally.
-                 With secure payments, efficient project management tools, and a commitment to fostering productive collaborations, 
-                 we empower you to achieve your professional goals. Join our community and experience the difference of a platform built on trust, efficiency, and growth."
-                 </p>
-                    <a href="contact.php"class="btn">contact us</a>
+                We offer a seamless experience, connecting you with vetted professionals and diverse opportunities globally.
+                With secure payments, efficient project management tools, and a commitment to fostering productive collaborations,
+                we empower you to achieve your professional goals. Join our community and experience the difference of a platform built on trust, efficiency, and growth."
+            </p>
+            <a href="contact.php" class="btn">contact us</a>
         </div>
 
-       </section>
+    </section>
 
 
-  <div class="section-title">top reviews</div>
+    <?php
+    if (session_status() == PHP_SESSION_NONE) {
+        session_start();
+    }
+    include("../Functions/db_connection.php");
 
-  <section class="reviews">
-    <div class="box-container">
+    // Fetch feedback with reviewer info
+$sql = "SELECT f.message, f.dateSubmitted, f.reviewerRole, f.rate,
+        e.companyName, e.Logo,
+        js.fullName, js.profilePic
+        FROM feedback f
+        LEFT JOIN employers e ON f.reviewerRole = 'employer' AND f.reviewerID = e.employerID
+        LEFT JOIN jobseeker_profiles js ON f.reviewerRole = 'jobseeker' AND f.reviewerID = js.user_Id
+        ORDER BY f.dateSubmitted DESC
+        LIMIT 10";
+    $result = mysqli_query($conn, $sql);
+    ?>
 
-        <div class="box">
-        <div class="stars">
-            <i class="fas fa-star"></i>
-            <i class="fas fa-star"></i>
-            <i class="fas fa-star"></i>
-            <i class="fas fa-star"></i>
-            <i class="fas fa-star-half-alt"></i>
+    <div class="section-title">top reviews</div>
+
+    <section class="reviews">
+        <div class="box-container">
+            <?php
+            if ($result && mysqli_num_rows($result) > 0) {
+                while ($row = mysqli_fetch_assoc($result)) {
+                    $name = $row['reviewerRole'] === 'employer' ? $row['companyName'] : $row['fullName'];
+$photo = $row['reviewerRole'] === 'employer' ? (isset($row['Logo']) ? $row['Logo'] : '') : $row['profilePic'];
+if (!empty($photo)) {
+    if ($row['reviewerRole'] === 'employer') {
+        // Check if $photo already contains 'uploads/' prefix
+        if (strpos($photo, 'uploads/') === 0) {
+            $photoPath = "../For_text/" . htmlspecialchars($photo);
+        } else {
+            $photoPath = "../For_text/uploads/" . htmlspecialchars($photo);
+        }
+    } else {
+        $photoPath = "../For_text/uploads/" . htmlspecialchars($photo);
+    }
+} else {
+    $photoPath = "https://via.placeholder.com/150";
+}
+
+// Fix for employer logo path if not displaying
+if ($row['reviewerRole'] === 'employer' && (!file_exists($photoPath) || empty($photo))) {
+    $photoPath = "../For_text/uploads/default_company_logo.png";
+}
+            ?>
+                    <div class="box">
+                        <div class="stars">
+                            <?php
+$rating = isset($row['rate']) ? (int)$row['rate'] : 0;
+                            for ($i = 1; $i <= 5; $i++) {
+                                if ($i <= $rating) {
+                                    echo '<i class="fas fa-star"></i>';
+                                } else {
+                                    echo '<i class="far fa-star"></i>';
+                                }
+                            }
+                            ?>
+                        </div>
+                        <h3 class="title"><?php echo htmlspecialchars($name); ?></h3>
+                        <p><?php echo nl2br(htmlspecialchars($row['message'])); ?></p>
+                        <div class="user">
+                            <img src="<?php echo $photoPath; ?>" alt="<?php echo htmlspecialchars($name); ?>">
+                            <div>
+                                <h3><?php echo htmlspecialchars($name); ?></h3>
+                                <span><?php echo htmlspecialchars($row['reviewerRole']); ?></span>
+                            </div>
+                        </div>
+                    </div>
+            <?php
+                }
+            } else {
+                echo "<p>No reviews found.</p>";
+            }
+            ?>
         </div>
-        <h3 class="title">amazing results</h3>
-        <p>Lorem ipsum dolor sit, amet consectetur adipisicing elit. Dignissimos ullam provident quam impedit, 
-        beatae cumque error sapiente enim inventore delectus eius laboriosam libero voluptas rerum omnis hic 
-        temporibus sequi. Laborum.</p>
-        <div class="user">
-            <img src="https://img.freepik.com/free-photo/man-with-camera-holding-his-neck_329181-3724.jpg?ga=GA1.1.173187149.1743160049&semt=ais_hybrid" alt="">
-          <div>
-            <h3>Mark Cams</h3>
-            <span> web designer</span>
-          </div>
-        </div>
-    </div>
+    </section>
 
-    <div class="box">
-        <div class="stars">
-            <i class="fas fa-star"></i>
-            <i class="fas fa-star"></i>
-            <i class="fas fa-star"></i>
-            <i class="fas fa-star"></i>
-            <i class="fas fa-star-half-alt"></i>
-        </div>
-        <h3 class="title">easy to use</h3>
-        <p>Lorem ipsum dolor sit, amet consectetur adipisicing elit. Dignissimos ullam provident quam impedit, 
-        beatae cumque error sapiente enim inventore delectus eius laboriosam libero voluptas rerum omnis hic 
-        temporibus sequi. Laborum.</p>
-        <div class="user">
-            <img src="https://i.pinimg.com/474x/78/76/57/787657b70f39e59da43da135ff57ce4a.jpg" alt="">
-          <div>
-            <h3>Johny Bravo</h3>
-            <span> web designer</span>
-          </div>
-        </div>
-    </div>
+    <div class="section-title">Submit Your Review</div>
 
-    <div class="box">
-        <div class="stars">
-            <i class="fas fa-star"></i>
-            <i class="fas fa-star"></i>
-            <i class="fas fa-star"></i>
-            <i class="fas fa-star"></i>
-            <i class="fas fa-star-half-alt"></i>
-        </div>
-        <h3 class="title">got selected</h3>
-        <p>Lorem ipsum dolor sit, amet consectetur adipisicing elit. Dignissimos ullam provident quam impedit, 
-        beatae cumque error sapiente enim inventore delectus eius laboriosam libero voluptas rerum omnis hic 
-        temporibus sequi. Laborum.</p>
-        <div class="user">
-            <img src="https://i.pinimg.com/474x/9f/ca/87/9fca87d1aa5ecaddf14681c95aba827e.jpg" alt="">
-          <div>
-            <h3>Jerry Tom</h3>
-            <span> web designer</span>
-          </div>
-        </div>
-    </div>
+    <?php if (isset($_SESSION['feedback_success'])): ?>
+        <div id="feedbackSuccess" class="alert success"><?php echo htmlspecialchars($_SESSION['feedback_success']); ?></div>
+        <?php unset($_SESSION['feedback_success']); ?>
+        <script>
+            setTimeout(function() {
+                var feedbackDiv = document.getElementById('feedbackSuccess');
+                if (feedbackDiv) {
+                    feedbackDiv.style.display = 'none';
+                }
+            }, 3000);
+        </script>
+    <?php endif; ?>
 
-    <div class="box">
-        <div class="stars">
-            <i class="fas fa-star"></i>
-            <i class="fas fa-star"></i>
-            <i class="fas fa-star"></i>
-            <i class="fas fa-star"></i>
-            <i class="fas fa-star-half-alt"></i>
-        </div>
-        <h3 class="title">nice experience</h3>
-        <p>Lorem ipsum dolor sit, amet consectetur adipisicing elit. Dignissimos ullam provident quam impedit, 
-        beatae cumque error sapiente enim inventore delectus eius laboriosam libero voluptas rerum omnis hic 
-        temporibus sequi. Laborum.</p>
-        <div class="user">
-            <img src="https://i.pinimg.com/474x/ac/26/16/ac26164d58b7e5eace1b0d65159d9fcd.jpg" alt="">
-          <div>
-            <h3>James bond</h3>
-            <span> web designer</span>
-          </div>
-        </div>
-    </div>
+    <?php if (isset($_SESSION['feedback_error'])): ?>
+        <div class="alert error"><?php echo htmlspecialchars($_SESSION['feedback_error']); ?></div>
+        <?php unset($_SESSION['feedback_error']); ?>
+    <?php endif; ?>
 
-    <div class="box">
-        <div class="stars">
-            <i class="fas fa-star"></i>
-            <i class="fas fa-star"></i>
-            <i class="fas fa-star"></i>
-            <i class="fas fa-star"></i>
-            <i class="fas fa-star-half-alt"></i>
-        </div>
-        <h3 class="title">wide range</h3>
-        <p>Lorem ipsum dolor sit, amet consectetur adipisicing elit. Dignissimos ullam provident quam impedit, 
-        beatae cumque error sapiente enim inventore delectus eius laboriosam libero voluptas rerum omnis hic 
-        temporibus sequi. Laborum.</p>
-        <div class="user">
-            <img src="https://i.pinimg.com/474x/1e/24/ac/1e24ac6b1b172ab649a295926a64666d.jpg" alt="">
-          <div>
-            <h3>Sponge bob</h3>
-            <span> web designer</span>
-          </div>
-        </div>
-    </div>
-
-    <div class="box">
-        <div class="stars">
-            <i class="fas fa-star"></i>
-            <i class="fas fa-star"></i>
-            <i class="fas fa-star"></i>
-            <i class="fas fa-star"></i>
-            <i class="fas fa-star-half-alt"></i>
-        </div>
-        <h3 class="title">super result</h3>
-        <p>Lorem ipsum dolor sit, amet consectetur adipisicing elit. Dignissimos ullam provident quam impedit, 
-        beatae cumque error sapiente enim inventore delectus eius laboriosam libero voluptas rerum omnis hic 
-        temporibus sequi. Laborum.</p>
-        <div class="user">
-            <img src="https://i.pinimg.com/474x/26/44/27/264427b3a0349f7a7072dc124d954061.jpg" alt="">
-          <div>
-            <h3>albert einstien</h3>
-            <span> web designer</span>
-          </div>
-        </div>
-    </div>
-
-    </div>
-  </section>
+    <!-- Removed the review submission form as per user request -->
+    <?php /* if (isset($_SESSION['employerID']) || isset($_SESSION['user_Id'])): ?>
+    <section class="feedback-form">
+        <form action="submit_feedback.php" method="POST">
+            <textarea name="message" rows="4" placeholder="Write your review here..." required></textarea>
+            <button type="submit" class="btn">Submit Review</button>
+        </form>
+    </section>
+<?php else: ?>
+    <p>Please <a href="login.php">log in</a> to submit a review.</p>
+<?php endif; */ ?>
 
 
 
@@ -213,19 +191,19 @@ include("../Functions/db_connection.php");
 
 
 
-<footer class="footer">
+    <footer class="footer">
 
-    <section class="grid">
-        <div class="box">
-            <h3>quick links</h3>
-            <a href="home.php"><i class="fas fa-angle-right"></i> home </a>
-            <a href="about.php"><i class="fas fa-angle-right"></i> about </a>
-            <a href="jobs.php"><i class="fas fa-angle-right"></i> all jobs </a>   
-            <a href="contact.php"><i class="fas fa-angle-right"></i> contact us</a>
-            <a href="#"><i class="fas fa-angle-right"></i> filter search </a>
-        </div>
+        <section class="grid">
+            <div class="box">
+                <h3>quick links</h3>
+                <a href="home.php"><i class="fas fa-angle-right"></i> home </a>
+                <a href="about.php"><i class="fas fa-angle-right"></i> about </a>
+                <a href="jobs.php"><i class="fas fa-angle-right"></i> all jobs </a>
+                <a href="contact.php"><i class="fas fa-angle-right"></i> contact us</a>
+                <a href="#"><i class="fas fa-angle-right"></i> filter search </a>
+            </div>
 
-        
+
             <div class="box">
                 <h3>extra links</h3>
                 <a href="#"><i class="fas fa-angle-right"></i> account </a>
@@ -244,11 +222,11 @@ include("../Functions/db_connection.php");
 
             </div>
 
-    </section>
+        </section>
 
-    <div class="credit">&copy; copyright @ 2025 by <span>mr. web designer
-    </span> | all rights reserved!</div>
-</footer>
+        <div class="credit">&copy; copyright @ 2025 by <span>mr. web designer
+            </span> | all rights reserved!</div>
+    </footer>
 
 
 
@@ -256,7 +234,6 @@ include("../Functions/db_connection.php");
 
 
     <script src="../Functions/script.js"></script>
-       
 
-    <body>
-    </html>
+</body>
+</html>

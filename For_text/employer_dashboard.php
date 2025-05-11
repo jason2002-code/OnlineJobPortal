@@ -49,6 +49,7 @@ $employer = mysqli_fetch_assoc($result_employer);
 </head>
 
 <body>
+<?php include 'feedback_popup.php'; ?>
     <?php
     if (session_status() == PHP_SESSION_NONE) {
         session_start();
@@ -65,16 +66,16 @@ $employer = mysqli_fetch_assoc($result_employer);
     <div class="sidebar">
         <h2><i class="fas fa-briefcase"></i> Employer Dashboard</h2>
         <ul>
-            <li><i class="fas fa-chart-line"></i> Dashboard</li>
-            <li><i class="fas fa-users"></i> Recruitment</li>
-            <li><i class="fas fa-comments"></i> Interview</li>
-            <li><i class="fas fa-user-plus"></i> Onboarding</li>
-            <li><i class="fas fa-tasks"></i> Interview Task</li>
-            <li><i class="fas fa-calendar-check"></i> Appointments</li>
-            <li><i class="fas fa-chalkboard-teacher"></i> Training</li>
+            <li><a href="employer_dashboard.php"><i class="fas fa-chart-line"></i> Dashboard</a></li>
+            <li><a href="recruitment.php"><i class="fas fa-users"></i> Recruitment</a></li>
+            <li><a href="view_interview.php"><i class="fas fa-comments"></i> Interview</a></li>
+            <li><a href="#"><i class="fas fa-user-plus"></i> Onboarding</a></li>
+            <li><a href="#"><i class="fas fa-tasks"></i> Interview Task</a></li>
+            <li><a href="application_review.php?showAccepted=1"><i class="fas fa-calendar-check"></i> Appointments</a></li>
+            <li><a href="#"><i class="fas fa-chalkboard-teacher"></i> Training</a></li>
         </ul>
-        <form action="logout.php" method="post">
-            <button class="logout"><i class="fas fa-sign-out-alt"></i> Logout</button>
+        <form action="logout.php" method="post" class="sidebar-logout-form">
+            <button class="logout"><i class="fas fa-right-from-bracket"></i> Logout</button>
         </form>
     </div>
 

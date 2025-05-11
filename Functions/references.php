@@ -28,15 +28,16 @@ if ($result && mysqli_num_rows($result) > 0) {
         'address' => ''
     ];
 }
- $notifications = [];
+
+
+    $notifications = [];
     $unreadCount = 0;
     $notifQuery = "SELECT n.notificationID, n.message, n.isRead, n.dateSent, i.interviewID, i.interviewDate, i.status, j.jobTitle
                    FROM notifications n
-                   INNER JOIN interview i ON (n.message LIKE CONCAT('%', i.interviewID, '%') OR n.message LIKE CONCAT('%', i.applicationID, '%'))
-                   INNER JOIN jobapplications ja ON i.applicationID = ja.applicationID
-                   INNER JOIN joblist j ON ja.jobID = j.jobID
-                   WHERE n.user_Id = ? AND (n.isHidden IS NULL OR n.isHidden = 0) AND j.employerID IS NOT NULL
-                   AND n.message LIKE 'Your interview:%'
+                   JOIN interview i ON n.message LIKE CONCAT('%', i.interviewID, '%') OR n.message LIKE CONCAT('%', i.applicationID, '%')
+                   JOIN jobapplications ja ON i.applicationID = ja.applicationID
+                   JOIN joblist j ON ja.jobID = j.jobID
+                   WHERE n.user_Id = ? AND (n.isHidden IS NULL OR n.isHidden = 0)
                    ORDER BY dateSent DESC
                    LIMIT 10";
     if ($stmt = $conn->prepare($notifQuery)) {
@@ -52,7 +53,6 @@ if ($result && mysqli_num_rows($result) > 0) {
         $stmt->close();
     }
 
-    
 // Delete old notifications older than 30 days
     $deleteOldNotifSql = "DELETE FROM notifications WHERE user_Id = ? AND dateSent < DATE_SUB(NOW(), INTERVAL 30 DAY)";
     if ($stmt = $conn->prepare($deleteOldNotifSql)) {
@@ -95,6 +95,7 @@ $showProfileReminder = empty($profile['fullName']) || empty($profile['bio']) || 
 
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -103,7 +104,7 @@ $showProfileReminder = empty($profile['fullName']) || empty($profile['bio']) || 
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link rel="stylesheet" href="../For_design/Jobseekstyle.css">
     <style>
-       
+
     </style>
 </head>
 <?php if ($showProfileReminder): ?>
@@ -114,7 +115,7 @@ $showProfileReminder = empty($profile['fullName']) || empty($profile['bio']) || 
 <?php endif; ?>
 
 <body>
-    <?php include 'feedback_popup.php'; ?>
+<?php include 'feedback_popup.php'; ?>
     <nav class="navbar navbar-expand-lg navbar-light">
         <div class="container">
             <a class="navbar-brand" href="jobseeker_dashboard.php"><i class="fas fa-briefcase me-2"></i>Upwork.</a>
@@ -134,26 +135,30 @@ $showProfileReminder = empty($profile['fullName']) || empty($profile['bio']) || 
                             <li class="dropdown-header">Notifications</li>
                             <?php if (count($notifications) > 0): ?>
                                 <?php foreach ($notifications as $notif): ?>
-                                <li class="notification-item position-relative" style="overflow: hidden;">
-                                    <?php if (!empty($notif['interviewID'])): ?>
-                                        <a class="dropdown-item<?php echo $notif['isRead'] == 0 ? ' fw-bold' : ''; ?>" href="view_interview_details.php?interviewID=<?php echo $notif['interviewID']; ?>" style="display: block; padding-right: 40px;">
-                                            <?php echo htmlspecialchars($notif['message']); ?><br>
-                                            <small class="text-muted"><?php echo date('M j, Y H:i', strtotime($notif['dateSent'])); ?></small>
-                                        </a>
-                                    <?php else: ?>
-                                        <span class="dropdown-item<?php echo $notif['isRead'] == 0 ? ' fw-bold' : ''; ?>" style="display: block; padding-right: 40px; cursor: default;">
-                                            <?php echo htmlspecialchars($notif['message']); ?><br>
-                                            <small class="text-muted"><?php echo date('M j, Y H:i', strtotime($notif['dateSent'])); ?></small>
-                                        </span>
-                                    <?php endif; ?>
-                                    <form method="post" action="hide_notification.php" class="hide-form position-absolute top-0 end-0 m-1" style="display: none;" onsubmit="return confirm('Are you sure you want to hide this notification?');">
-                                        <input type="hidden" name="notificationID" value="<?php echo $notif['notificationID']; ?>">
-                                        <button type="submit" class="btn btn-sm btn-danger p-1" title="Hide notification" style="border-radius: 50%; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center;">
-                                            <i class="fas fa-trash-alt"></i>
-                                        </button>
-                                    </form>
-                                </li>
-                            <?php endforeach; ?>
+                                    <li class="notification-item position-relative" style="overflow: hidden;">
+                                        <div class="notification-content" style="transition: transform 0.3s ease;">
+                                            <?php if (!empty($notif['interviewID'])): ?>
+                                                <a class="dropdown-item<?php echo $notif['isRead'] == 0 ? ' fw-bold' : ''; ?>" href="view_interview_details.php?interviewID=<?php echo $notif['interviewID']; ?>">
+                                                    <?php echo htmlspecialchars($notif['message']); ?><br>
+                                                    <small class="text-muted"><?php echo date('M j, Y H:i', strtotime($notif['dateSent'])); ?></small>
+                                                </a>
+                                            <?php else: ?>
+                                                <a class="dropdown-item<?php echo $notif['isRead'] == 0 ? ' fw-bold' : ''; ?>" href="#">
+                                                    <?php echo htmlspecialchars($notif['message']); ?><br>
+                                                    <small class="text-muted"><?php echo date('M j, Y H:i', strtotime($notif['dateSent'])); ?></small>
+                                                </a>
+                                            <?php endif; ?>
+                                        </div>
+                                <?php if (empty($notif['interviewID'])): ?>
+                                <form method="post" action="hide_notification.php" class="hide-form position-absolute top-0 end-0 h-100 d-flex align-items-center pe-2" style="background: #ffc107; width: 50px; transform: translateX(100%); transition: transform 0.3s ease;" onsubmit="return confirm('Are you sure you want to hide this notification?');">
+                                    <input type="hidden" name="notificationID" value="<?php echo $notif['notificationID']; ?>">
+                                    <button type="submit" class="btn btn-sm btn-warning p-0" title="Hide notification" style="border: none; background: transparent; color: white; width: 100%; height: 100%;">
+                                        <i class="fas fa-eye-slash"></i>
+                                    </button>
+                                </form>
+                                <?php endif; ?>
+                                    </li>
+                                <?php endforeach; ?>
                             <?php else: ?>
                                 <li><span class="dropdown-item-text">No notifications found.</span></li>
                             <?php endif; ?>
@@ -222,20 +227,48 @@ $showProfileReminder = empty($profile['fullName']) || empty($profile['bio']) || 
                     </div>
                     <a href="edit_profile.php" class="btn btn-primary w-100 mt-3">Edit Profile</a>
                 </div>
-                
+
+                <div class="profile-card mt-4">
+                    <div class="section-title">Notifications</div>
+                    <div class="notifications-list" style="max-height: 300px; overflow-y: auto;">
+                        <?php if (count($notifications) > 0): ?>
+                <?php foreach ($notifications as $notif): ?>
+                    <div class="notification-item p-2 border-bottom d-flex align-items-center <?php echo $notif['isRead'] == 0 ? 'fw-bold' : ''; ?>" style="position: relative;">
+                        <a href="<?php echo !empty($notif['interviewID']) ? 'view_interview_details.php?interviewID=' . $notif['interviewID'] : '#'; ?>" class="d-flex align-items-center flex-grow-1 text-decoration-none text-dark">
+                            <div class="notification-icon me-2" style="color: #4e73df;">
+                                <i class="fas fa-envelope"></i>
+                            </div>
+                            <div>
+                                <?php echo htmlspecialchars($notif['message']); ?><br>
+                                <small class="text-muted"><?php echo date('M j, Y H:i', strtotime($notif['dateSent'])); ?></small>
+                            </div>
+                        </a>
+                        <form method="post" action="hide_notification.php" class="hide-form ms-auto" style="background: #ffc107; width: 50px; height: 100%; display: flex; align-items: center; justify-content: center;" onsubmit="return confirm('Are you sure you want to hide this notification?');">
+                            <input type="hidden" name="notificationID" value="<?php echo $notif['notificationID']; ?>">
+                            <button type="submit" class="btn btn-sm btn-warning p-0" title="Hide notification" style="border: none; background: transparent; color: white; width: 100%; height: 100%;">
+                                <i class="fas fa-eye-slash"></i>
+                            </button>
+                        </form>
+                    </div>
+                <?php endforeach; ?>
+                        <?php else: ?>
+                            <p>No notifications found.</p>
+                        <?php endif; ?>
+                    </div>
+
                 <div class="profile-card">
                     <div class="section-title">Quick Stats</div>
                     <div class="profile-info">
                         <div class="info-item d-flex justify-content-between">
-                            <span>Applications:</span> 
+                            <span>Applications:</span>
                             <span class="badge bg-primary rounded-pill">12</span>
                         </div>
                         <div class="info-item d-flex justify-content-between">
-                            <span>Interviews:</span> 
+                            <span>Interviews:</span>
                             <span class="badge bg-success rounded-pill">3</span>
                         </div>
                         <div class="info-item d-flex justify-content-between">
-                            <span>Saved Jobs:</span> 
+                            <span>Saved Jobs:</span>
                             <span class="badge bg-warning rounded-pill"><?php echo count($savedJobs); ?></span>
                         </div>
                     </div>
@@ -267,7 +300,7 @@ $showProfileReminder = empty($profile['fullName']) || empty($profile['bio']) || 
                             <input type="file" accept=".pdf,.doc,.docx" class="form-control mt-3" style="display: none;">
                         </div>
                         <p class="info-item">
-                            <span>Current Resume:</span> 
+                            <span>Current Resume:</span>
                             <?php if (!empty($profile['resume'])): ?>
                                 <a href="../For_text/uploads/<?php echo htmlspecialchars($profile['resume']); ?>" class="text-primary" target="_blank"><?php echo htmlspecialchars($profile['resume']); ?></a>
                             <?php else: ?>
@@ -314,15 +347,15 @@ $showProfileReminder = empty($profile['fullName']) || empty($profile['bio']) || 
                                             } elseif (strtolower($status) === 'offer received') {
                                                 $statusClass = 'bg-success';
                                             }
-                                             "<tr>";
-                                             "<td>" . htmlspecialchars($row['jobTitle']) . "</td>";
-                                             "<td>" . htmlspecialchars($row['companyName']) . "</td>";
-                                             "<td>" . $appliedDate . "</td>";
-                                             "<td><span class='badge $statusClass'>" . $status . "</span></td>";
-                                             "<td><a href='view_job.php?jobID=" . urlencode($row['jobID']) . "' class='btn btn-sm btn-outline-primary me-1'>View</a>";
-                                             "<button type='button' class='btn btn-sm btn-outline-warning remove-application-btn' data-application-id='" . htmlspecialchars($row['applicationID']) . "'>Remove</button>";
-                                             "</td>";
-                                             "</tr>";
+                                            echo "<tr>";
+                                            echo "<td>" . htmlspecialchars($row['jobTitle']) . "</td>";
+                                            echo "<td>" . htmlspecialchars($row['companyName']) . "</td>";
+                                            echo "<td>" . $appliedDate . "</td>";
+                                            echo "<td><span class='badge $statusClass'>" . $status . "</span></td>";
+                                            echo "<td><a href='view_job.php?jobID=" . urlencode($row['jobID']) . "' class='btn btn-sm btn-outline-primary me-1'>View</a>";
+                                            echo "<button type='button' class='btn btn-sm btn-outline-warning remove-application-btn' data-application-id='" . htmlspecialchars($row['applicationID']) . "'>Remove</button>";
+                                            echo "</td>";
+                                            echo "</tr>";
                                         }
                                     } else {
                                         echo "<tr><td colspan='5' class='text-center'>No recent applications found.</td></tr>";
@@ -383,6 +416,7 @@ $showProfileReminder = empty($profile['fullName']) || empty($profile['bio']) || 
             </div>
         </div>
     </div>
+    </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
     <script>
@@ -390,7 +424,7 @@ $showProfileReminder = empty($profile['fullName']) || empty($profile['bio']) || 
         document.querySelector('.resume-upload').addEventListener('click', function() {
             this.querySelector('input[type="file"]').click();
         });
-        
+
         // Change resume upload area style when file is selected
         document.querySelector('.resume-upload input[type="file"]').addEventListener('change', function(e) {
             if (this.files.length > 0) {
@@ -400,7 +434,7 @@ $showProfileReminder = empty($profile['fullName']) || empty($profile['bio']) || 
                     '<p class="small text-muted">Click to upload a different file</p>';
                 uploadArea.querySelector('i').style.fontSize = '2rem';
                 uploadArea.querySelector('p').classList.add('mb-0');
-                
+
                 // Re-add the click event
                 uploadArea.addEventListener('click', function() {
                     const input = document.createElement('input');
@@ -409,7 +443,7 @@ $showProfileReminder = empty($profile['fullName']) || empty($profile['bio']) || 
                     input.style.display = 'none';
                     uploadArea.appendChild(input);
                     input.click();
-                    
+
                     input.addEventListener('change', function() {
                         if (this.files.length > 0) {
                             uploadArea.innerHTML = '<i class="fas fa-check-circle text-success"></i>' +
@@ -426,12 +460,26 @@ $showProfileReminder = empty($profile['fullName']) || empty($profile['bio']) || 
         // Show delete button on hover for notifications
         document.querySelectorAll('.notification-item').forEach(item => {
             const hideForm = item.querySelector('.hide-form');
+            const icon = item.querySelector('.notification-icon');
+            const message = item.querySelector('.notification-message');
+            if (hideForm) {
+                hideForm.style.transform = 'translateX(100%)';
+                hideForm.style.transition = 'transform 0.3s ease';
+            }
+            if (icon && message) {
+                icon.addEventListener('mouseenter', () => {
+                    message.style.display = 'block';
+                });
+                icon.addEventListener('mouseleave', () => {
+                    message.style.display = 'none';
+                });
+            }
             if (hideForm) {
                 item.addEventListener('mouseenter', () => {
-                    hideForm.style.display = 'flex';
+                    hideForm.style.transform = 'translateX(0)';
                 });
                 item.addEventListener('mouseleave', () => {
-                    hideForm.style.display = 'none';
+                    hideForm.style.transform = 'translateX(100%)';
                 });
             }
         });
@@ -452,32 +500,34 @@ $showProfileReminder = empty($profile['fullName']) || empty($profile['bio']) || 
             }
         }, 3000);
 
-        // Add remove application button functionality - hide application on dashboard via backend call
+        // Add remove application button functionality
         document.querySelectorAll('.remove-application-btn').forEach(button => {
             button.addEventListener('click', function() {
                 const applicationId = this.getAttribute('data-application-id');
-                if (confirm('Are you sure you want to remove this application from the dashboard view?')) {
-                    fetch('hide_application.php', {
+                if (confirm('Are you sure you want to remove this application?')) {
+                    fetch('delete_application.php', {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/x-www-form-urlencoded',
                         },
                         body: 'applicationID=' + encodeURIComponent(applicationId)
                     })
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.success) {
-                            // Remove the row from the table
-                            const row = this.closest('tr');
-                            if (row) {
-                                row.remove();
-                            }
+                    .then(response => {
+                        if (response.redirected) {
+                            window.location.href = response.url;
                         } else {
-                            alert(data.message || 'Failed to remove application from dashboard. Please try again.');
+                            return response.text();
+                        }
+                    })
+                    .then(data => {
+                        // Remove the row from the table
+                        const row = this.closest('tr');
+                        if (row) {
+                            row.remove();
                         }
                     })
                     .catch(error => {
-                        alert('Failed to remove application from dashboard. Please try again.');
+                        alert('Failed to remove application. Please try again.');
                         console.error('Error:', error);
                     });
                 }
@@ -485,11 +535,10 @@ $showProfileReminder = empty($profile['fullName']) || empty($profile['bio']) || 
         });
     </script>
     <footer class="footer">
-    <div class="credit">&copy; copyright @ 2025 by <span>mr. web designer</span> | All rights reserved!</div>
-</footer>
+        <div class="credit">&copy; copyright @ 2025 by <span>mr. web designer</span> | All rights reserved!</div>
+    </footer>
 
-<script src="../Functions/script.js"></script>
+    <script src="../Functions/script.js"></script>
 </body>
-</html>
-        
 
+</html>
