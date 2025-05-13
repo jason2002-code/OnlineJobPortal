@@ -13,28 +13,37 @@ if (isset($_POST['send'])) {
     // Determine userID if logged in, else 0
     $userID = isset($_SESSION['user_Id']) ? intval($_SESSION['user_Id']) : 0;
 
-    // Map role values to receiverRole enum values
-    $receiverRole = '';
-    if ($role === 'employee') {
-        $receiverRole = 'jobseeker';
-    } elseif ($role === 'employeer') {
-        $receiverRole = 'employer';
-    } else {
-        $receiverRole = 'admin'; // Send to admin notifications by default if not jobseeker or employer
-    }
+    // Only allow jobseekers (employee) and employers (employeer) to send messages
+    if ($role === 'employee' || $role === 'employeer') {
+        // Map role values to receiverRole enum values
+        $receiverRole = 'admin'; // Set receiverRole to admin for all allowed roles
 
-    // Insert into notifications table
-    $insertQuery = "INSERT INTO notifications (user_Id, receiverRole, message, isRead, dateSent) VALUES (?, ?, ?, 0, NOW())";
-    if ($stmt = $conn->prepare($insertQuery)) {
-        $stmt->bind_param("iss", $userID, $receiverRole, $message);
-        if ($stmt->execute()) {
-            $successMsg = "Message sent successfully.";
+        // Determine user_Id for notifications based on role
+        if ($role === 'employee') {
+            // For jobseeker, use user_Id from session
+            $userID = isset($_SESSION['user_Id']) ? intval($_SESSION['user_Id']) : 0;
+        } elseif ($role === 'employeer') {
+            // For employer, use employerID from session
+            $userID = isset($_SESSION['employerID']) ? intval($_SESSION['employerID']) : 0;
         } else {
-            $errorMsg = "Failed to send message.";
+            $userID = 0;
         }
-        $stmt->close();
+
+        // Insert into notifications table
+        $insertQuery = "INSERT INTO notifications (user_Id, receiverRole, message, isRead, dateSent) VALUES (?, ?, ?, 0, NOW())";
+        if ($stmt = $conn->prepare($insertQuery)) {
+            $stmt->bind_param("iss", $userID, $receiverRole, $message);
+            if ($stmt->execute()) {
+                $successMsg = "Message sent successfully.";
+            } else {
+                $errorMsg = "Failed to send message.";
+            }
+            $stmt->close();
+        } else {
+            $errorMsg = "Failed to prepare statement.";
+        }
     } else {
-        $errorMsg = "Failed to prepare statement.";
+        $errorMsg = "Only jobseekers and employers can send messages to admin.";
     }
 }
 ?>
@@ -142,7 +151,6 @@ if (isset($_POST['send'])) {
                <select name="role" id="role-select" required class="input">
                 <option value="employee" <?php echo (isset($_POST['role']) && $_POST['role'] === 'employee') ? 'selected' : ''; ?>>job seeker (employee)</option>
                 <option value="employeer" <?php echo (isset($_POST['role']) && $_POST['role'] === 'employeer') ? 'selected' : ''; ?>>job provider (employeer)</option>
-                <option value="admin" <?php echo (isset($_POST['role']) && $_POST['role'] === 'admin') ? 'selected' : ''; ?>>Administrator (Admin)</option>
             </select>
             </div>
         </div>
@@ -162,9 +170,6 @@ if (isset($_POST['send'])) {
                 emailBox.style.display = 'none';
             } else if (role === 'employee') {
                 emailBox.style.display = 'block';
-                companyBox.style.display = 'none';
-            } else if (role === 'admin') {
-                emailBox.style.display = 'none';
                 companyBox.style.display = 'none';
             } else {
                 emailBox.style.display = 'block';

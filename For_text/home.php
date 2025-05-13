@@ -1,7 +1,8 @@
 <?php
 include("../Functions/db_connection.php");
-?>
 
+$categoryID = isset($_GET['categoryID']) ? intval($_GET['categoryID']) : 0;
+?>
 
 <!DOCTYPE html>
 <html lang="en">
@@ -47,58 +48,42 @@ include("../Functions/db_connection.php");
     </section>
 </div>
 
+<?php
+include("../Functions/Category.php");
+$categoryObj = new Category($conn);
+$categories = $categoryObj->getAllCategories();
+?>
+
 <section class="category">
     <h1 class="heading">Job Categories</h1>
     <div class="box-container">
-        <a href="#" class="box">
-            <i class="fas fa-code"></i>
-            <div>
-                <h3>Development</h3>
-                <span>2200 jobs</span>
-            </div>
-        </a>
-        <a href="#" class="box">
-            <i class="fas fa-pen"></i>
-            <div>
-                <h3>Designer</h3>
-                <span>500 jobs</span>
-            </div>
-        </a>
-        <a href="#" class="box">
-            <i class="fas fa-chalkboard-user"></i>
-            <div>
-                <h3>Teacher</h3>
-                <span>1500 jobs</span>
-            </div>
-        </a>
-        <a href="#" class="box">
-            <i class="fas fa-headset"></i>
-            <div>
-                <h3>Service</h3>
-                <span>3100 jobs</span>
-            </div>
-        </a>
-        <a href="#" class="box">
-            <i class="fas fa-wrench"></i>
-            <div>
-                <h3>Engineer</h3>
-                <span>400 jobs</span>
-            </div>
-        </a>
-        <a href="#" class="box">
-            <i class="fas fa-hand-holding-dollar"></i>
-            <div>
-                <h3>Finance</h3>
-                <span>1000 jobs</span>
-            </div>
-        </a>
-        <a href="#" class="box">
-            <i class="fas fa-wrench"></i>
-            <div>
-                <h3>Labour</h3>
-                <span>4000 jobs</span>
-            </div>
-        </a>
+        <?php if (!empty($categories)): ?>
+            <?php foreach ($categories as $category): ?>
+                <?php
+                $jobCount = $categoryObj->getJobCountByCategory($category['categoryID']);
+                // Map category icons based on category name or ID (example mapping)
+                $iconMap = [
+                    'Development' => 'fas fa-code',
+                    'Designer' => 'fas fa-pen',
+                    'Teacher' => 'fas fa-chalkboard-user',
+                    'Service' => 'fas fa-headset',
+                    'Engineer' => 'fas fa-wrench',
+                    'Finance' => 'fas fa-hand-holding-dollar',
+                    'Labour' => 'fas fa-hard-hat',
+                ];
+                $iconClass = $iconMap[$category['categoryName']] ?? 'fas fa-briefcase';
+                ?>
+                <a href="home.php?categoryID=<?= htmlspecialchars($category['categoryID']) ?>" class="box">
+                    <i class="<?= htmlspecialchars($iconClass) ?>"></i>
+                    <div>
+                        <h3><?= htmlspecialchars($category['categoryName']) ?></h3>
+                        <span><?= htmlspecialchars($jobCount) ?> jobs</span>
+                    </div>
+                </a>
+            <?php endforeach; ?>
+        <?php else: ?>
+            <p>No categories found.</p>
+        <?php endif; ?>
     </div>
 </section>
 
@@ -106,10 +91,17 @@ include("../Functions/db_connection.php");
     <h1 class="heading">Latest Jobs</h1>
     <div class="box-container">
         <?php
-        $sql = "SELECT * FROM joblist ORDER BY posted_date DESC LIMIT 6";
-        $result = $conn->query($sql);
+        if ($categoryID > 0) {
+            $stmt = $conn->prepare("SELECT * FROM joblist WHERE categoryID = ? ORDER BY posted_date DESC LIMIT 6");
+            $stmt->bind_param("i", $categoryID);
+            $stmt->execute();
+            $result = $stmt->get_result();
+        } else {
+            $sql = "SELECT * FROM joblist ORDER BY posted_date DESC LIMIT 6";
+            $result = $conn->query($sql);
+        }
 
-        if ($result->num_rows > 0):
+        if ($result && $result->num_rows > 0):
             while ($row = $result->fetch_assoc()):
 $imagePath = !empty($row['Photo']) ? 
     ('uploads/' . basename($row['Photo'])) : 
@@ -124,14 +116,14 @@ $imagePath = !empty($row['Photo']) ?
                     $employerID = $row['employerID'];
                     $companyName = 'Company';
                     $employerQuery = "SELECT companyName FROM employers WHERE employerID = ?";
-                    if ($stmt = $conn->prepare($employerQuery)) {
-                        $stmt->bind_param("i", $employerID);
-                        $stmt->execute();
-                        $stmt->bind_result($fetchedCompanyName);
-                        if ($stmt->fetch()) {
+                    if ($stmt2 = $conn->prepare($employerQuery)) {
+                        $stmt2->bind_param("i", $employerID);
+                        $stmt2->execute();
+                        $stmt2->bind_result($fetchedCompanyName);
+                        if ($stmt2->fetch()) {
                             $companyName = $fetchedCompanyName;
                         }
-                        $stmt->close();
+                        $stmt2->close();
                     }
                     echo htmlspecialchars($companyName);
                     ?>
@@ -196,4 +188,3 @@ $imagePath = !empty($row['Photo']) ?
 <script src="../Functions/script.js"></script>
 </body>
 </html>
-        

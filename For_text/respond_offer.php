@@ -20,7 +20,7 @@ $success = "";
 
 // Fetch offer details and verify ownership
 $sql = "SELECT o.offerID, o.applicationID, o.salary, o.startDate, o.offerStatus, ja.user_Id
-        FROM offers o
+        FROM job_offers o
         JOIN jobapplications ja ON o.applicationID = ja.applicationID
         WHERE o.offerID = ?";
 $stmt = $conn->prepare($sql);
@@ -40,7 +40,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && empty($error)) {
         $error = "Invalid response.";
     } else {
         // Update offerStatus
-        $updateSql = "UPDATE offers SET offerStatus = ? WHERE offerID = ?";
+        $updateSql = "UPDATE job_offers SET offerStatus = ? WHERE offerID = ?";
         $updateStmt = $conn->prepare($updateSql);
         $updateStmt->bind_param("si", $response, $offerID);
         $updateStmt->execute();

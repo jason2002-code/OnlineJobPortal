@@ -52,7 +52,7 @@ $stmt->close();
 </head>
 
 <body>
-    <nav class="navbar navbar-expand-lg navbar-light bg-light">
+    <nav class="navbar navbar-expand-lg navbar-light">
         <div class="container">
             <a class="navbar-brand" href="employer_dashboard.php"><i class="fas fa-briefcase me-2"></i>Upwork.</a>
             <a href="schedule_interview.php" class="btn btn-primary ms-auto"><i class="fas fa-calendar-plus me-1"></i>Schedule Interview</a>
@@ -90,6 +90,7 @@ $stmt->close();
                 <?php endforeach; ?>
             </div>
         <?php endif; ?>
+         <a href="employer_dashboard.php" class="btn btn-secondary mt-3">Back to Dashboard</a>
     </div>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>

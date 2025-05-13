@@ -120,7 +120,7 @@ if (isset($_POST['submit'])) {
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet" />
     <link rel="stylesheet" href="../For_design/Jobseekstyle.css" />
 </head>
-<body>
+<body class="jobseeker-dashboard">
     <div class="container mt-5">
         <h2>Account Settings</h2>
         <?php if (!empty($msg)): ?>
@@ -155,5 +155,7 @@ if (isset($_POST['submit'])) {
             <a href="jobseeker_dashboard.php" class="btn btn-secondary ms-2">Cancel</a>
         </form>
     </div>
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.10.2/dist/umd/popper.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.min.js"></script>
 </body>
 </html>

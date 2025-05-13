@@ -84,7 +84,7 @@ if (isset($_SESSION['saved_jobs']) && is_array($_SESSION['saved_jobs']) && count
     <link rel="stylesheet" href="../For_design/Jobseekstyle.css" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" />
 </head>
-<body>
+<body class="jobseeker-dashboard">
     <nav class="navbar navbar-expand-lg navbar-light">
         <div class="container">
             <a class="navbar-brand" href="jobseeker_dashboard.php"><i class="fas fa-briefcase me-2"></i>Upwork.</a>
@@ -95,7 +95,7 @@ if (isset($_SESSION['saved_jobs']) && is_array($_SESSION['saved_jobs']) && count
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav ms-auto">
                     <li class="nav-item position-relative">
-                        <a class="nav-link" href="#"><i class="fas fa-bell me-1"></i><span class="notification-badge">3</span></a>
+                        <a class="nav-link" href="jobseeker_notifications.php"><i class="fas fa-bell me-1"></i><span class=""></span></a>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link active" href="jobseeker_dashboard.php"><i class="fas fa-user me-1"></i>Profile</a>
@@ -114,7 +114,7 @@ if (isset($_SESSION['saved_jobs']) && is_array($_SESSION['saved_jobs']) && count
                             <i class="fas fa-cog me-1"></i>Settings
                         </a>
                         <ul class="dropdown-menu" aria-labelledby="navbarDropdown">
-                            <li><a class="dropdown-item" href="#">Account Settings</a></li>
+                            <li><a class="dropdown-item" href="jobseeker_account_settings.php">Account Settings</a></li>
                             <li><a class="dropdown-item" href="#">Privacy</a></li>
                             <li><hr class="dropdown-divider"></li>
                             <li><a class="dropdown-item" href="logout.php">Logout</a></li>

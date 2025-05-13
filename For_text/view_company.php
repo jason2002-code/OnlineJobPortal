@@ -92,7 +92,20 @@ $employeeCount = 253; // Replace with a query if you have an `employees` table
         <div class="details">
         <div class="info">
         <?php
-        $logoPath = !empty($employer['Logo']) ? 'uploads/' . basename($employer['Logo']) : 'uploads/default-logo.png';
+        if (!empty($employer['Logo'])) {
+            // Normalize logo path to ensure it points to the uploads/logos directory
+            $logoFilename = basename($employer['Logo']);
+            $uploadsDir = 'uploads/logos/';
+            $potentialPath = $uploadsDir . $logoFilename;
+            if (file_exists($potentialPath)) {
+                $logoPath = $potentialPath;
+            } else {
+                // fallback to original path if file does not exist in uploads/logos
+                $logoPath = $employer['Logo'];
+            }
+        } else {
+            $logoPath = 'uploads/default-logo.png';
+        }
         ?>
         <img src="<?php echo htmlspecialchars($logoPath); ?>" alt="Company Logo" style="max-width: 300px; height: auto;" onerror="this.onerror=null;this.src='uploads/default-logo.png';" />
     <h3><?= htmlspecialchars($employer['companyName']) ?></h3>

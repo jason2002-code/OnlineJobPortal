@@ -134,7 +134,7 @@ $stmt->close();
 <nav class="navbar navbar-expand-lg navbar-light bg-light">
     <div class="container">
         <a class="navbar-brand" href="employer_dashboard.php"><i class="fas fa-briefcase me-2"></i>Upwork.</a>
-        <a href="view_interview_details.php" class="btn btn-secondary ms-auto"><i class="fas fa-arrow-left me-1"></i>Back to Interviews</a>
+        <a href="view_interview.php" class="btn btn-secondary ms-auto"><i class="fas fa-arrow-left me-1"></i>Back to Interviews</a>
     </div>
 </nav>
 

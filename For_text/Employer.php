@@ -12,7 +12,7 @@ if (isset($_POST['submit'])) {
     // Handle logo upload
     $logoPath = null;
     if (isset($_FILES['logo']) && $_FILES['logo']['error'] == UPLOAD_ERR_OK) {
-        $uploadDir = 'uploads/';
+        $uploadDir = 'uploads/logos/';
         if (!file_exists($uploadDir)) {
             mkdir($uploadDir, 0755, true);
         }

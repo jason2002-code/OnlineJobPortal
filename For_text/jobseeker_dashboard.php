@@ -28,29 +28,64 @@ if ($result && mysqli_num_rows($result) > 0) {
         'address' => ''
     ];
 }
- $notifications = [];
-    $unreadCount = 0;
-    $notifQuery = "SELECT n.notificationID, n.message, n.isRead, n.dateSent, i.interviewID, i.interviewDate, i.status, j.jobTitle
-                   FROM notifications n
-                   INNER JOIN interview i ON (n.message LIKE CONCAT('%', i.interviewID, '%') OR n.message LIKE CONCAT('%', i.applicationID, '%'))
-                   INNER JOIN jobapplications ja ON i.applicationID = ja.applicationID
-                   INNER JOIN joblist j ON ja.jobID = j.jobID
-                   WHERE n.user_Id = ? AND (n.isHidden IS NULL OR n.isHidden = 0) AND j.employerID IS NOT NULL
-                   AND n.message LIKE 'Your interview:%'
-                   ORDER BY dateSent DESC
-                   LIMIT 10";
-    if ($stmt = $conn->prepare($notifQuery)) {
-        $stmt->bind_param("i", $user_Id);
-        $stmt->execute();
-        $notifResult = $stmt->get_result();
-        while ($notif = $notifResult->fetch_assoc()) {
-            $notifications[] = $notif;
-            if ($notif['isRead'] == 0) {
-                $unreadCount++;
-            }
+
+// Fetch accurate counts for quick stats
+// Applications count
+$applicationsCount = 0;
+$applicationsQuery = "SELECT COUNT(*) as count FROM jobapplications WHERE user_Id = ? AND (isHidden IS NULL OR isHidden = 0)";
+if ($stmt = $conn->prepare($applicationsQuery)) {
+    $stmt->bind_param("i", $user_Id);
+    $stmt->execute();
+    $stmt->bind_result($applicationsCount);
+    $stmt->fetch();
+    $stmt->close();
+}
+
+// Interviews count
+$interviewsCount = 0;
+$interviewsCountQuery = "SELECT COUNT(*) as count FROM interview i
+                         JOIN jobapplications ja ON i.applicationID = ja.applicationID
+                         WHERE ja.user_Id = ?";
+if ($stmt = $conn->prepare($interviewsCountQuery)) {
+    $stmt->bind_param("i", $user_Id);
+    $stmt->execute();
+    $stmt->bind_result($interviewsCount);
+    $stmt->fetch();
+    $stmt->close();
+}
+
+// Saved jobs count
+$savedJobsCount = 0;
+if (isset($_SESSION['saved_jobs']) && is_array($_SESSION['saved_jobs'])) {
+    $savedJobsCount = count($_SESSION['saved_jobs']);
+}
+$notifications = [];
+$unreadCount = 0;
+$notifQuery = "SELECT n.notificationID, n.message, n.isRead, n.dateSent, i.interviewID, i.interviewDate, i.status, j.jobTitle, e.employerID
+               FROM notifications n
+               LEFT JOIN interview i ON (n.message LIKE CONCAT('%', i.interviewID, '%') OR n.message LIKE CONCAT('%', i.applicationID, '%'))
+               LEFT JOIN jobapplications ja ON i.applicationID = ja.applicationID
+               LEFT JOIN joblist j ON ja.jobID = j.jobID
+               LEFT JOIN employers e ON j.employerID = e.employerID
+               WHERE n.user_Id = ? AND (n.isHidden IS NULL OR n.isHidden = 0)
+               AND (
+                   (e.employerID IS NOT NULL AND n.message LIKE 'Your interview:%')
+                   OR (n.receiverRole = 'jobseeker' AND (e.employerID IS NULL OR e.employerID IS NOT NULL))
+               )
+               ORDER BY dateSent DESC
+               LIMIT 10";
+if ($stmt = $conn->prepare($notifQuery)) {
+    $stmt->bind_param("i", $user_Id);
+    $stmt->execute();
+    $notifResult = $stmt->get_result();
+    while ($notif = $notifResult->fetch_assoc()) {
+        $notifications[] = $notif;
+        if ($notif['isRead'] == 0) {
+            $unreadCount++;
         }
-        $stmt->close();
     }
+    $stmt->close();
+}
 
     
 // Delete old notifications older than 30 days
@@ -60,6 +95,26 @@ if ($result && mysqli_num_rows($result) > 0) {
         $stmt->execute();
         $stmt->close();
     }
+
+// Fetch interviews for the logged-in user
+$interviews = [];
+$interviewQuery = "SELECT i.interviewID, i.interviewDate, i.status, j.jobTitle, e.companyName
+                   FROM interview i
+                   JOIN jobapplications ja ON i.applicationID = ja.applicationID
+                   JOIN joblist j ON ja.jobID = j.jobID
+                   JOIN employers e ON j.employerID = e.employerID
+                   WHERE ja.user_Id = ?
+                   ORDER BY i.interviewDate DESC
+                   LIMIT 5";
+if ($stmt = $conn->prepare($interviewQuery)) {
+    $stmt->bind_param("i", $user_Id);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    while ($row = $result->fetch_assoc()) {
+        $interviews[] = $row;
+    }
+    $stmt->close();
+}
 
 // Parse skills into array
 $skills = array_filter(array_map('trim', explode(',', $profile['skills'])));
@@ -90,6 +145,27 @@ if (isset($_SESSION['saved_jobs']) && is_array($_SESSION['saved_jobs']) && count
     }
 }
 
+// Fetch interviews for the logged-in user
+$interviews = [];
+$interviewQuery = "SELECT i.interviewID, i.interviewDate, i.status, j.jobTitle, e.companyName
+                   FROM interview i
+                   JOIN jobapplications ja ON i.applicationID = ja.applicationID
+                   JOIN joblist j ON ja.jobID = j.jobID
+                   JOIN employers e ON j.employerID = e.employerID
+                   WHERE ja.user_Id = ?
+                   ORDER BY i.interviewDate DESC
+                   LIMIT 5";
+if ($stmt = $conn->prepare($interviewQuery)) {
+    $stmt->bind_param("i", $user_Id);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    while ($row = $result->fetch_assoc()) {
+        $interviews[] = $row;
+    }
+    $stmt->close();
+}
+
+
 $showProfileReminder = empty($profile['fullName']) || empty($profile['bio']) || empty($profile['skills']);
 ?>
 
@@ -113,18 +189,18 @@ $showProfileReminder = empty($profile['fullName']) || empty($profile['bio']) || 
     </div>
 <?php endif; ?>
 
-<body>
+<body class="jobseeker-dashboard">
     <?php include 'feedback_popup.php'; ?>
     <nav class="navbar navbar-expand-lg navbar-light">
         <div class="container">
-            <a class="navbar-brand" href="jobseeker_dashboard.php"><i class="fas fa-briefcase me-2"></i>Upwork.</a>
+            <a class="navbar-brand" href="#"><i class="fas fa-briefcase me-2"></i>Upwork.</a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
                 <span class="navbar-toggler-icon"></span>
             </button>
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav ms-auto">
                     <li class="nav-item dropdown position-relative">
-                        <a class="nav-link dropdown-toggle" href="#" id="notificationDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                        <a class="nav-link dropdown-toggle" href="jobseeker_notifications.php" id="notificationDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                             <i class="fas fa-bell me-1"></i>
                             <?php if ($unreadCount > 0): ?>
                                 <span class="notification-badge"><?php echo $unreadCount; ?></span>
@@ -135,17 +211,10 @@ $showProfileReminder = empty($profile['fullName']) || empty($profile['bio']) || 
                             <?php if (count($notifications) > 0): ?>
                                 <?php foreach ($notifications as $notif): ?>
                                 <li class="notification-item position-relative" style="overflow: hidden;">
-                                    <?php if (!empty($notif['interviewID'])): ?>
-                                        <a class="dropdown-item<?php echo $notif['isRead'] == 0 ? ' fw-bold' : ''; ?>" href="view_interview_details.php?interviewID=<?php echo $notif['interviewID']; ?>" style="display: block; padding-right: 40px;">
-                                            <?php echo htmlspecialchars($notif['message']); ?><br>
-                                            <small class="text-muted"><?php echo date('M j, Y H:i', strtotime($notif['dateSent'])); ?></small>
-                                        </a>
-                                    <?php else: ?>
-                                        <span class="dropdown-item<?php echo $notif['isRead'] == 0 ? ' fw-bold' : ''; ?>" style="display: block; padding-right: 40px; cursor: default;">
-                                            <?php echo htmlspecialchars($notif['message']); ?><br>
-                                            <small class="text-muted"><?php echo date('M j, Y H:i', strtotime($notif['dateSent'])); ?></small>
-                                        </span>
-                                    <?php endif; ?>
+                                    <a class="dropdown-item<?php echo $notif['isRead'] == 0 ? ' fw-bold' : ''; ?>" href="jobseeker_notifications.php?notificationID=<?php echo $notif['notificationID']; ?>" style="display: block; padding-right: 40px;">
+                                        <?php echo htmlspecialchars($notif['message']); ?><br>
+                                        <small class="text-muted"><?php echo date('M j, Y H:i', strtotime($notif['dateSent'])); ?></small>
+                                    </a>
                                     <form method="post" action="hide_notification.php" class="hide-form position-absolute top-0 end-0 m-1" style="display: none;" onsubmit="return confirm('Are you sure you want to hide this notification?');">
                                         <input type="hidden" name="notificationID" value="<?php echo $notif['notificationID']; ?>">
                                         <button type="submit" class="btn btn-sm btn-danger p-1" title="Hide notification" style="border-radius: 50%; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center;">
@@ -228,17 +297,28 @@ $showProfileReminder = empty($profile['fullName']) || empty($profile['bio']) || 
                     <div class="profile-info">
                         <div class="info-item d-flex justify-content-between">
                             <span>Applications:</span> 
-                            <span class="badge bg-primary rounded-pill">12</span>
+                            <span class="badge bg-primary rounded-pill"><?php echo $applicationsCount; ?></span>
                         </div>
                         <div class="info-item d-flex justify-content-between">
                             <span>Interviews:</span> 
-                            <span class="badge bg-success rounded-pill">3</span>
+                            <span class="badge bg-success rounded-pill"><?php echo $interviewsCount; ?></span>
                         </div>
                         <div class="info-item d-flex justify-content-between">
                             <span>Saved Jobs:</span> 
-                            <span class="badge bg-warning rounded-pill"><?php echo count($savedJobs); ?></span>
+                            <span class="badge bg-warning rounded-pill"><?php echo $savedJobsCount; ?></span>
                         </div>
                     </div>
+                </div>
+
+              
+                <div class="profile-card"> <div class="section-title">Notifications</div>
+                <div class="profile-info">
+                    <div class="info-item d-flex justify-content-between">
+                        <span>Unread:</span>
+                        <span class="badge bg-danger rounded-pill"><?php echo $unreadCount; ?></span>
+                    </div>
+                </div>
+
                 </div>
             </div>
 
@@ -314,15 +394,15 @@ $showProfileReminder = empty($profile['fullName']) || empty($profile['bio']) || 
                                             } elseif (strtolower($status) === 'offer received') {
                                                 $statusClass = 'bg-success';
                                             }
-                                             "<tr>";
-                                             "<td>" . htmlspecialchars($row['jobTitle']) . "</td>";
-                                             "<td>" . htmlspecialchars($row['companyName']) . "</td>";
-                                             "<td>" . $appliedDate . "</td>";
-                                             "<td><span class='badge $statusClass'>" . $status . "</span></td>";
-                                             "<td><a href='view_job.php?jobID=" . urlencode($row['jobID']) . "' class='btn btn-sm btn-outline-primary me-1'>View</a>";
-                                             "<button type='button' class='btn btn-sm btn-outline-warning remove-application-btn' data-application-id='" . htmlspecialchars($row['applicationID']) . "'>Remove</button>";
-                                             "</td>";
-                                             "</tr>";
+                                             echo "<tr>";
+                                             echo "<td>" . htmlspecialchars($row['jobTitle']) . "</td>";
+                                             echo "<td>" . htmlspecialchars($row['companyName']) . "</td>";
+                                             echo "<td>" . $appliedDate . "</td>";
+                                             echo "<td><span class='badge $statusClass'>" . $status . "</span></td>";
+                                             echo "<td><a href='view_job.php?jobID=" . urlencode($row['jobID']) . "' class='btn btn-sm btn-outline-primary me-1'>View</a>";
+                                             echo "<button type='button' class='btn btn-sm btn-outline-warning remove-application-btn' data-application-id='" . htmlspecialchars($row['applicationID']) . "'>Remove</button>";
+                                             echo "</td>";
+                                             echo "</tr>";
                                         }
                                     } else {
                                         echo "<tr><td colspan='5' class='text-center'>No recent applications found.</td></tr>";
@@ -377,6 +457,104 @@ $showProfileReminder = empty($profile['fullName']) || empty($profile['bio']) || 
                         </div>
                     <?php else: ?>
                         <p>No saved jobs found.</p>
+                    <?php endif; ?>
+                </div>
+                <div class="profile-card mt-4">
+                    <div class="section-title">Upcoming Interviews</div>
+                    <?php if (count($interviews) > 0): ?>
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Position</th>
+                                        <th>Company</th>
+                                        <th>Interview Date</th>
+                                        <th>Status</th>
+                                        <th>Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <?php foreach ($interviews as $interview): ?>
+                                        <tr>
+                                            <td><?= htmlspecialchars($interview['jobTitle']) ?></td>
+                                            <td><?= htmlspecialchars($interview['companyName']) ?></td>
+                                            <td><?= date('M j, Y, g:i A', strtotime($interview['interviewDate'])) ?></td>
+                                            <td>
+                                                <span class="badge 
+                                                    <?php 
+                                                        echo $interview['status'] === 'scheduled' ? 'bg-primary' : 
+                                                             ($interview['status'] === 'completed' ? 'bg-success' : 'bg-danger'); 
+                                                    ?>">
+                                                    <?= ucfirst($interview['status']) ?>
+                                                </span>
+                                            </td>
+                                            <td>
+                                                <a href="view_interview_details.php?interviewID=<?= urlencode($interview['interviewID']) ?>" class="btn btn-sm btn-outline-primary">View Details</a>
+                                            </td>
+                                        </tr>
+                                    <?php endforeach; ?>
+                                </tbody>
+                            </table>
+                        </div>
+                    <?php else: ?>
+                        <p>No upcoming interviews found.</p>
+                    <?php endif; ?>
+                </div>
+
+                <div class="profile-card mt-4">
+                    <div class="section-title">Job Offers</div>
+                    <?php
+                    $offers = [];
+                    $offersQuery = "SELECT o.offerID, o.salary, o.startDate, o.offerStatus, j.jobTitle, e.companyName
+                                    FROM job_offers o
+                                    JOIN jobapplications ja ON o.applicationID = ja.applicationID
+                                    JOIN joblist j ON ja.jobID = j.jobID
+                                    JOIN employers e ON j.employerID = e.employerID
+                                    WHERE ja.user_Id = ?
+                                    ORDER BY o.offerID DESC
+                                    LIMIT 5";
+                    if ($stmt = $conn->prepare($offersQuery)) {
+                        $stmt->bind_param("i", $user_Id);
+                        $stmt->execute();
+                        $result = $stmt->get_result();
+                        while ($row = $result->fetch_assoc()) {
+                            $offers[] = $row;
+                        }
+                        $stmt->close();
+                    }
+                    ?>
+                    <?php if (count($offers) > 0): ?>
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Position</th>
+                                        <th>Company</th>
+                                        <th>Salary</th>
+                                        <th>Start Date</th>
+                                        <th>Status</th>
+                                        <th>Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <?php foreach ($offers as $offer): ?>
+                                        <tr>
+                                            <td><?= htmlspecialchars($offer['jobTitle']) ?></td>
+                                            <td><?= htmlspecialchars($offer['companyName']) ?></td>
+                                            <td><?= htmlspecialchars(number_format($offer['salary'], 2)) ?></td>
+                                            <td><?= htmlspecialchars($offer['startDate']) ?></td>
+                                            <td><?= htmlspecialchars(ucfirst($offer['offerStatus'])) ?></td>
+                                            <td>
+                                                <a href="respond_offer.php?offerID=<?= urlencode($offer['offerID']) ?>" class="btn btn-sm btn-primary">Respond</a>
+                                            </td>
+                                        </tr>
+                                    <?php endforeach; ?>
+                                </tbody>
+                            </table>
+                        </div>
+                        <a href="my_offers.php" class="btn btn-link text-primary float-end">View all offers</a>
+                    <?php else: ?>
+                        <p>No job offers found.</p>
                     <?php endif; ?>
                 </div>
 

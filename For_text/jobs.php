@@ -8,9 +8,19 @@ $schedules = [];
 if ($schedule_result) {
     while ($row = $schedule_result->fetch_assoc()) {
         if (!empty($row['Schedule'])) {
-            $schedules[] = $row['Schedule'];
+            // Normalize Schedule value by trimming whitespace
+            $schedule = trim($row['Schedule']);
+            // Remove first and last character if they are the same
+            if (strlen($schedule) > 1 && $schedule[0] === $schedule[strlen($schedule) - 1]) {
+                $schedule = substr($schedule, 1, -1);
+            }
+            $schedules[] = $schedule;
         }
     }
+    // Remove duplicates after normalization
+    $schedules = array_unique($schedules);
+    // Optional: reindex array
+    $schedules = array_values($schedules);
 }
 
 // Fetch distinct education values for education dropdown
@@ -23,6 +33,18 @@ if ($education_result) {
         }
     }
 }
+
+if (isset($_GET['categoryID']) && is_numeric($_GET['categoryID'])) {
+    $categoryID = intval($_GET['categoryID']);
+    $stmt = $conn->prepare("SELECT * FROM joblist WHERE categoryID = ? ORDER BY posted_date DESC");
+    $stmt->bind_param("i", $categoryID);
+    $stmt->execute();
+    $result = $stmt->get_result();
+} else {
+    $result = $conn->query("SELECT * FROM joblist ORDER BY posted_date DESC");
+}
+
+
 ?>
 
 <!DOCTYPE html>
@@ -132,110 +154,94 @@ if ($education_result) {
         <h1 class="heading">all jobs</h1>
         <div class="box-container">
             <?php
-            $title = $location = $date = $salary = $job_type = $education = $work_shift = "";
-            if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['search'])) {
-                $title = isset($_POST['title']) ? $conn->real_escape_string($_POST['title']) : '';
-                $location = isset($_POST['location']) ? $conn->real_escape_string($_POST['location']) : '';
-                $date = isset($_POST['date']) ? $conn->real_escape_string($_POST['date']) : '';
-                $salary = isset($_POST['salary']) ? $conn->real_escape_string($_POST['salary']) : '';
-                $job_type = isset($_POST['job_type']) ? $conn->real_escape_string($_POST['job_type']) : '';
-                $education = isset($_POST['education']) ? $conn->real_escape_string($_POST['education']) : '';
+          $title = $location = $date = $salary = $job_type = $education = "";
 
-                $conditions = [];
+if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['search'])) {
+    $title = trim($_POST['title'] ?? '');
+    $location = trim($_POST['location'] ?? '');
+    $date = trim($_POST['date'] ?? '');
+    $salary = trim($_POST['salary'] ?? '');
+    $job_type = trim($_POST['job_type'] ?? '');
+    $education = trim($_POST['education'] ?? '');
 
-                if (!empty($title) && !empty($location)) {
-                    $title_esc = strtolower($conn->real_escape_string($title));
-                    $location_esc = strtolower($conn->real_escape_string($location));
-                    // Change OR to AND for better filtering
-                    $conditions[] = "(LOWER(jobTitle) LIKE '%$title_esc%' AND LOWER(location) LIKE '%$location_esc%')";
-                } else {
-                    if (!empty($title)) {
-                        $title_esc = strtolower($conn->real_escape_string($title));
-                        $conditions[] = "LOWER(jobTitle) LIKE '%$title_esc%'";
-                    }
-                    if (!empty($location)) {
-                        $location_esc = strtolower($conn->real_escape_string($location));
-                        $conditions[] = "LOWER(location) LIKE '%$location_esc%'";
-                    }
-                }
+    $conditions = [];
 
-                // Date posted filter: calculate date range based on selected option
-                if (!empty($date)) {
-                    $days_ago = 0;
-                    switch (strtolower($date)) {
-                        case 'today':
-                            $days_ago = 0;
-                            break;
-                        case '3 days ago':
-                            $days_ago = 3;
-                            break;
-                        case '7 days ago':
-                            $days_ago = 7;
-                            break;
-                        case '10 days ago':
-                            $days_ago = 10;
-                            break;
-                        case '15 days ago':
-                            $days_ago = 15;
-                            break;
-                        case '30 days ago':
-                            $days_ago = 30;
-                            break;
-                        default:
-                            $days_ago = 0;
-                    }
-                    $date_limit = date('Y-m-d', strtotime("-$days_ago days"));
-                    $conditions[] = "posted_date >= '$date_limit'";
-                }
+    // Job title and Location combined with OR logic
+    if (!empty($title) && !empty($location)) {
+        $safe_title = $conn->real_escape_string($title);
+        $safe_location = $conn->real_escape_string($location);
+        $conditions[] = "(LOWER(jobTitle) LIKE '%" . strtolower($safe_title) . "%' OR LOWER(location) LIKE '%" . strtolower($safe_location) . "%')";
+    } else {
+        if (!empty($title)) {
+            $safe_title = $conn->real_escape_string($title);
+            $conditions[] = "LOWER(jobTitle) LIKE '%" . strtolower($safe_title) . "%'";
+        }
+        if (!empty($location)) {
+            $safe_location = $conn->real_escape_string($location);
+            $conditions[] = "LOWER(location) LIKE '%" . strtolower($safe_location) . "%'";
+        }
+    }
 
-                // Salary filter: parse min and max salary from string like "55k - 80k"
-                if (!empty($salary)) {
-                    $salary = strtolower(str_replace(' ', '', $salary));
-                    if (strpos($salary, 'or more') !== false) {
-                        // Extract the number before 'k or more'
-                        preg_match('/(\d+)k/', $salary, $matches);
-                        $min_salary = isset($matches[1]) ? intval($matches[1]) * 1000 : 0;
-                        $conditions[] = "Salary >= $min_salary";
-                    } elseif (strpos($salary, '-') !== false) {
-                        list($min_salary, $max_salary) = explode('-', $salary);
-                        $min_salary = intval(str_replace('k', '000', $min_salary));
-                        $max_salary = intval(str_replace('k', '000', $max_salary));
-                        $tolerance = 0.2; // 20% flexibility
-                        $min_flex = (int)($min_salary * (1 - $tolerance));
-                        $max_flex = (int)($max_salary * (1 + $tolerance));
-                        $conditions[] = "Salary BETWEEN $min_flex AND $max_flex";
-                    }
-                }
+    // Date Posted, Salary, Job Type, Education combined with OR logic
+    $or_conditions = [];
 
-                // Job type filter (Schedule column)
-                if (!empty($job_type)) {
-                    $conditions[] = "Schedule = '$job_type'";
-                }
+    if (!empty($date)) {
+        $daysAgo = 0;
+        switch (strtolower($date)) {
+            case 'today': $daysAgo = 0; break;
+            case '3 days ago': $daysAgo = 3; break;
+            case '7 days ago': $daysAgo = 7; break;
+            case '10 days ago': $daysAgo = 10; break;
+            case '15 days ago': $daysAgo = 15; break;
+            case '30 days ago': $daysAgo = 30; break;
+        }
 
-                // Education filter
-                if (!empty($education)) {
-                    $conditions[] = "education = '$education'";
-                }
+        if ($daysAgo >= 0) {
+            $or_conditions[] = "posted_date >= CURDATE() - INTERVAL $daysAgo DAY";
+        }
+    }
 
-                $where_clause = "";
-                if (count($conditions) > 0) {
-                    // Add condition to exclude closed jobs
-                    $conditions[] = "LOWER(status) != 'closed'";
-                    $where_clause = "WHERE " . implode(" AND ", $conditions);
-                } else {
-                    $where_clause = "WHERE LOWER(status) != 'closed'";
-                }
+    if (!empty($salary)) {
+        $salary_clean = strtolower(str_replace([' ', 'k'], ['', '000'], $salary));
 
-                // Calculate average salary for ordering if salary filter is applied
-                if (!empty($salary) && strpos($salary, '-') !== false) {
-                    $avg_salary = ($min_salary + $max_salary) / 2;
-                    $sql = "SELECT * FROM joblist $where_clause ORDER BY ABS(Salary - $avg_salary) ASC, posted_date DESC";
-                } else {
-                    $sql = "SELECT * FROM joblist $where_clause ORDER BY posted_date DESC";
-                }
-            } else {
-                $sql = "SELECT * FROM joblist WHERE LOWER(status) != 'closed' ORDER BY posted_date DESC";
-            }
+        if (strpos($salary, 'or more') !== false) {
+            preg_match('/(\d+)/', $salary_clean, $match);
+            $min_salary = isset($match[1]) ? intval($match[1]) : 0;
+            $or_conditions[] = "Salary >= $min_salary";
+        } elseif (strpos($salary_clean, '-') !== false) {
+            [$min, $max] = explode('-', $salary_clean);
+            $min_salary = intval($min);
+            $max_salary = intval($max);
+            $or_conditions[] = "Salary BETWEEN $min_salary AND $max_salary";
+        }
+    }
+
+    if (!empty($job_type)) {
+        $safe_type = $conn->real_escape_string($job_type);
+        $or_conditions[] = "LOWER(Schedule) LIKE '%" . strtolower($safe_type) . "%'";
+    }
+
+    if (!empty($education)) {
+        $safe_edu = $conn->real_escape_string($education);
+        $or_conditions[] = "LOWER(education) LIKE '%" . strtolower($safe_edu) . "%'";
+    }
+
+    if (count($or_conditions) > 0) {
+        $conditions[] = "(" . implode(" OR ", $or_conditions) . ")";
+    }
+
+    // Always exclude closed jobs
+    $conditions[] = "LOWER(status) != 'closed'";
+
+    $where_clause = "WHERE " . implode(" AND ", $conditions);
+
+    $sql = "SELECT * FROM joblist $where_clause ORDER BY posted_date DESC";
+
+} else {
+    // No filters applied — show all open jobs
+    $sql = "SELECT * FROM joblist WHERE LOWER(status) != 'closed' ORDER BY posted_date DESC";
+}
+
             $result = $conn->query($sql);
             if (!$result) {
                 echo "<p style='color:red; text-align:center;'>Database query error: " . htmlspecialchars($conn->error) . "</p>";
@@ -271,7 +277,7 @@ if ($education_result) {
                                 <p class="location"><i class="fas fa-map-marker-alt"></i> <span><?= htmlspecialchars($row['location']) ?></span></p>
                             </div>
                             <div class="tags">
-                                <p><i class="fas fa-solid fa-peso-sign"></i><span><?= htmlspecialchars($row['Salary']) ?></span></p>
+                                <p><i class="fas fa-solid fa-peso-sign"></i><span><?= htmlspecialchars(str_replace('$', '', $row['Salary'])) ?></span></p>
                                 <p><i class="fas fa-briefcase"></i><span><?= htmlspecialchars($row['status']) ?></span></p>
                                 <p><i class="fas fa-clock"></i><span><?= htmlspecialchars($row['Schedule']) ?></span></p>
                             </div>

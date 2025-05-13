@@ -2,6 +2,20 @@
 session_start();
 include("../Functions/db_connection.php");
 
+// Handle delete notification request
+if (isset($_GET['delete_notification'])) {
+    $deleteId = intval($_GET['delete_notification']);
+    $deleteQuery = "DELETE FROM notifications WHERE notificationID = ?";
+    if ($stmt = $conn->prepare($deleteQuery)) {
+        $stmt->bind_param("i", $deleteId);
+        $stmt->execute();
+        $stmt->close();
+    }
+    // Redirect to avoid resubmission
+    header("Location: admin.php");
+    exit();
+}
+
 // Get recent job applications
 $appQuery = "SELECT a.applicationID, u.fullName, j.jobTitle, a.applicationDate
              FROM jobapplications a
@@ -25,6 +39,16 @@ $employerQuery = "SELECT employerID, companyName, DateStab
                   ORDER BY DateStab DESC
                   LIMIT 5";
 $employerResult = $conn->query($employerQuery);
+
+// Get recent notifications for admin with sender info (employer companyName or jobseeker email)
+$notifQuery = "SELECT n.notificationID, n.message, n.isRead, n.dateSent,
+               'Anonymous' AS senderName,
+               'Anonymous' AS senderType
+               FROM notifications n
+               WHERE n.receiverRole = 'admin' OR n.receiverRole = 'all'
+               ORDER BY n.dateSent DESC
+               LIMIT 5";
+$notifResult = $conn->query($notifQuery);
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -39,19 +63,26 @@ $employerResult = $conn->query($employerQuery);
 
     <link href="../For_design/adminS.css" rel="stylesheet">
     <style>
-    
-       body {
-    background: linear-gradient(135deg, #4e73df, #1cc88a);
-    background-size: 400% 400%;
-    animation: gradientBG 10s ease infinite;
-    font-family: 'Poppins', sans-serif;
-}
+        body {
+            background: linear-gradient(135deg, #4e73df, #1cc88a);
+            background-size: 400% 400%;
+            animation: gradientBG 10s ease infinite;
+            font-family: 'Poppins', sans-serif;
+        }
 
-@keyframes gradientBG {
-    0% { background-position: 0% 50%; }
-    50% { background-position: 100% 50%; }
-    100% { background-position: 0% 50%; }
-}
+        @keyframes gradientBG {
+            0% {
+                background-position: 0% 50%;
+            }
+
+            50% {
+                background-position: 100% 50%;
+            }
+
+            100% {
+                background-position: 0% 50%;
+            }
+        }
     </style>
 
 </head>
@@ -68,13 +99,19 @@ $employerResult = $conn->query($employerQuery);
 
             <div class="collapse navbar-collapse" id="adminNavbar">
                 <ul class="navbar-nav ms-auto">
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" id="managementDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">
+                            <i class="fas fa-briefcase me-1"></i> Management
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="managementDropdown">
+                            <li><a class="dropdown-item" href="admin_post_job.php">Manage Job</a></li>
+                            <li><a class="dropdown-item" href="admin_add_category.php">Job Category</a></li>
+                        </ul>
+                    </li>
                     <li class="nav-item">
                         <a class="nav-link <?= basename($_SERVER['PHP_SELF']) == 'manage_users.php' ? 'active' : '' ?>" href="manage_users.php">
                             <i class="fas fa-users-cog me-1"></i> Manage Users
                         </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="manage_jobs.php"><i class="fas fa-briefcase me-1"></i> Manage Jobs</a>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link" href="application_log.php"><i class="fas fa-file-alt me-1"></i> Application Activity</a>
@@ -154,8 +191,33 @@ $employerResult = $conn->query($employerQuery);
                 <?php endif; ?>
             </ul>
         </div>
-    </div>
 
+        <div class="card shadow-sm mt-4">
+            <div class="card-header bg-warning text-white">
+                <h5 class="mb-0">Recent Notifications</h5>
+            </div>
+            <ul class="list-group list-group-flush">
+                <?php if ($notifResult->num_rows > 0): ?>
+                    <?php while ($notif = $notifResult->fetch_assoc()): ?>
+                        <li class="list-group-item d-flex justify-content-between align-items-start">
+                            <div>
+                                <strong>From: </strong> <?= htmlspecialchars($notif['senderName']) ?> (<?= htmlspecialchars($notif['senderType']) ?>)<br>
+                                <?php echo nl2br(htmlspecialchars($notif['message'])); ?> <br>
+                                <small class="text-muted">Sent on <?= date('M d, Y H:i', strtotime($notif['dateSent'])) ?></small>
+                            </div>
+                            <div>
+                                <a href="admin.php?delete_notification=<?= $notif['notificationID'] ?>" class="btn btn-sm btn-danger" onclick="return confirm('Are you sure you want to delete this notification?');">Delete</a>
+                            </div>
+                        </li>
+                    <?php endwhile; ?>
+                <?php else: ?>
+                    <li class="list-group-item">No recent notifications.</li>
+                <?php endif; ?>
+            </ul>
+        </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 
 </html>

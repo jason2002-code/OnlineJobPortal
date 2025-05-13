@@ -30,6 +30,23 @@ if ($jobID > 0) {
         exit();
     }
     $stmt->close();
+} else {
+    // Initialize empty job array for new job to avoid undefined index errors in form
+    $job = [
+        'jobTitle' => '',
+        'description' => '',
+        'Salary' => '',
+        'Benefits' => '',
+        'Schedule' => '',
+        'requirements' => '',
+        'Skills' => '',
+        'posted_date' => '',
+        'status' => '',
+        'location' => '',
+        'education' => '',
+        'Experience' => '',
+        'Photo' => ''
+    ];
 }
 
 // If POST request, handle create or update
@@ -187,8 +204,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     
     $conn->close();
     
-    header("Location: admin.php");
-    exit();
+    // Remove this redirect to avoid overriding previous redirects
+    // header("Location: admin.php");
+    // exit();
 }
 ?>
 
@@ -236,7 +254,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 </div>
             <?php endif; ?>
             
-            <form action="admin_post_job.php?jobID=<?php echo $jobID; ?>" method="POST" enctype="multipart/form-data">
+<form action="admin_post_job.php<?php echo ($jobID > 0) ? '?jobID=' . $jobID : ''; ?>" method="POST" enctype="multipart/form-data">
                 <div class="job-form-grid">
                     <div class="form-group">
                         <label for="jobTitle">Job Title *</label>

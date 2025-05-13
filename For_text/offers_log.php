@@ -1,5 +1,4 @@
 <?php
-session_start();
 include("../Functions/db_connection.php");
 
 session_start();
@@ -9,9 +8,7 @@ if (!isset($_SESSION['employerID'])) {
     exit;
 }
 
-
-
-
+$employerID = $_SESSION['employerID'];
 
 // Fetch offers for this employer's jobs
 $sql = "SELECT o.offerID, o.applicationID, o.salary, o.startDate, o.offerStatus,
@@ -27,6 +24,9 @@ $sql = "SELECT o.offerID, o.applicationID, o.salary, o.startDate, o.offerStatus,
         ORDER BY o.offerID DESC";
 
 $stmt = $conn->prepare($sql);
+if (!$stmt) {
+    die("Prepare failed: " . $conn->error);
+}
 $stmt->bind_param("i", $employerID);
 $stmt->execute();
 $result = $stmt->get_result();
@@ -74,6 +74,7 @@ $result = $stmt->get_result();
     <?php else: ?>
         <p>No offers found.</p>
     <?php endif; ?>
+       <a href="employer_dashboard.php" class="btn btn-secondary mt-3">Back to Dashboard</a>
 </div>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>

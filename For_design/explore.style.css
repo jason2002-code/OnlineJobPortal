@@ -1,0 +1,92 @@
+/* explore_style.css */
+:root {
+    --primary: #4361ee;
+    --success: #4CAF50;
+    --danger: #F44336;
+    --warning: #FFC107;
+    --dark: #1a1a2e;
+    --light: #f8f9fa;
+    --gray: #e0e0e0;
+    --font: 'Inter', sans-serif;
+}
+
+body {
+    font-family: var(--font);
+    background-color: var(--light);
+    color: var(--dark);
+    margin: 0;
+    padding: 2rem;
+}
+
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    background: white;
+    padding: 2rem;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+h1, h2 {
+    text-align: center;
+    color: var(--primary);
+    margin-bottom: 1rem;
+}
+
+.stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 1rem;
+    margin-bottom: 2rem;
+}
+
+.stat-card {
+    background-color: var(--light);
+    border: 1px solid var(--gray);
+    padding: 1rem;
+    border-radius: 10px;
+    text-align: center;
+    font-size: 1rem;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+}
+
+canvas {
+    display: block;
+    max-width: 100%;
+    margin: 0 auto 2rem;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 1.5rem;
+    background-color: white;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+}
+
+table thead {
+    background-color: var(--primary);
+    color: white;
+}
+
+table th, table td {
+    padding: 0.75rem 1rem;
+    text-align: left;
+    border-bottom: 1px solid var(--gray);
+}
+
+table tbody tr:hover {
+    background-color: #f1f5ff;
+}
+
+@media (max-width: 768px) {
+    .stats {
+        grid-template-columns: 1fr 1fr;
+    }
+
+    table th, table td {
+        font-size: 0.9rem;
+    }
+}

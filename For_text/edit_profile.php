@@ -89,7 +89,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (empty($errors)) {
         // Insert or update profile
         if ($profileExists) {
-            $stmt = $conn->prepare("UPDATE jobseeker_profile SET fullName=?, bio=?, skills=?, resume=?, profilePic=?, age=?, gender=?, address=? WHERE user_Id=?");
+            $stmt = $conn->prepare("UPDATE jobseeker_profiles SET fullName=?, bio=?, skills=?, resume=?, profilePic=?, age=?, gender=?, address=? WHERE user_Id=?");
             $stmt->bind_param("ssssssssi", $fullName, $bio, $skills, $resumeFileName, $profilePicFileName, $age, $gender, $address, $user_Id);
         } else {
             $stmt = $conn->prepare("INSERT INTO jobseeker_profiles (user_Id, fullName, bio, skills, resume, profilePic, age, gender, address) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");

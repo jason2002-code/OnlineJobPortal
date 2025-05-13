@@ -2,6 +2,47 @@
 session_start();
 include("../Functions/db_connection.php");
 
+// Fetch categories for job posting
+$categories = [];
+$categoryQuery = "SELECT categoryID, categoryName FROM job_categories ORDER BY categoryName ASC";
+if ($stmt = $conn->prepare($categoryQuery)) {
+    $stmt->execute();
+    $result = $stmt->get_result();
+    while ($row = $result->fetch_assoc()) {
+        $categories[] = $row;
+    }
+    $stmt->close();
+} else {
+    // Handle query preparation error if needed
+}
+
+include_once "../Functions/employer_search_functions.php";
+
+$searchResults = [
+    'jobs' => [],
+    'applicants' => [],
+    'offers' => [],
+];
+
+$searchErrors = [];
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['search_submit'])) {
+    $employerID = $_SESSION['employerID'];
+    $searchQuery = $_POST['search_query'] ?? '';
+
+    include_once "../Functions/employer_search_functions.php";
+    // Use the new search functions related to employer with filters
+    $filters = ['title' => $searchQuery];
+    $searchResults['jobs'] = searchJobsByEmployer($conn, $employerID, $filters);
+    $filters = ['fullName' => $searchQuery];
+    $searchResults['applicants'] = searchApplicantsByEmployer($conn, $employerID, $filters);
+    $filters = ['jobTitle' => $searchQuery];
+    $searchResults['offers'] = searchOffersByEmployer($conn, $employerID, $filters);
+
+    // Define hasResults for use in HTML
+    $hasResults = !empty($searchResults['jobs']) || !empty($searchResults['applicants']) || !empty($searchResults['offers']);
+}
+
 // Check if employer is logged in
 if (!isset($_SESSION['employerID'])) {
     header('location:login.php');
@@ -32,10 +73,39 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_job']) && isse
 
 // Get employer details
 $employer_id = $_SESSION['employerID'];
-$select_employer = "SELECT * FROM employers WHERE employerID = '$employer_id'";
-$result_employer = mysqli_query($conn, $select_employer);
-$employer = mysqli_fetch_assoc($result_employer);
+$select_employer = "SELECT * FROM employers WHERE employerID = ?";
+if ($stmt = $conn->prepare($select_employer)) {
+    $stmt->bind_param("i", $employer_id);
+    $stmt->execute();
+    $result_employer = $stmt->get_result();
+    $employer = $result_employer->fetch_assoc();
+    $stmt->close();
+} else {
+    $employer = null;
+}
+
+// Fetch notifications for the logged-in employer
+$notifications = [];
+$unreadCount = 0;
+$notifQuery = "SELECT notificationID, message, isRead, dateSent
+               FROM notifications
+               WHERE user_Id = ? AND receiverRole = 'employer' AND (isHidden IS NULL OR isHidden = 0)
+               ORDER BY dateSent DESC
+               LIMIT 10";
+if ($stmt = $conn->prepare($notifQuery)) {
+    $stmt->bind_param("i", $employer_id);
+    $stmt->execute();
+    $notifResult = $stmt->get_result();
+    while ($notif = $notifResult->fetch_assoc()) {
+        $notifications[] = $notif;
+        if ($notif['isRead'] == 0) {
+            $unreadCount++;
+        }
+    }
+    $stmt->close();
+}
 ?>
+
 <!DOCTYPE html>
 <html lang="en">
 
@@ -43,13 +113,13 @@ $employer = mysqli_fetch_assoc($result_employer);
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Employer Dashboard</title>
-    <link rel="stylesheet" href="../For_design/style.css">
+    <link rel="stylesheet" href="../For_design/employer_dashboard.css ">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 </head>
 
 <body>
-<?php include 'feedback_popup.php'; ?>
+    <?php include 'feedback_popup.php'; ?>
     <?php
     if (session_status() == PHP_SESSION_NONE) {
         session_start();
@@ -69,22 +139,74 @@ $employer = mysqli_fetch_assoc($result_employer);
             <li><a href="employer_dashboard.php"><i class="fas fa-chart-line"></i> Dashboard</a></li>
             <li><a href="recruitment.php"><i class="fas fa-users"></i> Recruitment</a></li>
             <li><a href="view_interview.php"><i class="fas fa-comments"></i> Interview</a></li>
-            <li><a href="#"><i class="fas fa-user-plus"></i> Onboarding</a></li>
-            <li><a href="#"><i class="fas fa-tasks"></i> Interview Task</a></li>
+            <li><a href="offers_log.php"><i class="fas fa-user-plus"></i> Offers</a></li>
+            <li><a href="employer_notifications.php"><i class="fas fa-inbox"></i> Messages
+                    <?php if ($unreadCount > 0): ?>
+                        <span class="notification-badge"><?php echo $unreadCount; ?></span>
+                    <?php endif; ?>
+                </a></li>
             <li><a href="application_review.php?showAccepted=1"><i class="fas fa-calendar-check"></i> Appointments</a></li>
-            <li><a href="#"><i class="fas fa-chalkboard-teacher"></i> Training</a></li>
+            <li><a href="settings.php"><i class="fas fa-cog"></i> Settings</a></li>
+            <li style="margin-top: 5px;">
+                <form action="logout.php" method="post" class="sidebar-logout-form" style="margin: 0;">
+                    <button class="logout"><i class="fas fa-right-from-bracket"></i> Logout</button>
+                </form>
+            </li>
         </ul>
-        <form action="logout.php" method="post" class="sidebar-logout-form">
-            <button class="logout"><i class="fas fa-right-from-bracket"></i> Logout</button>
-        </form>
+
     </div>
 
     <div class="main">
-        <header>
-            <input type="text" placeholder="Search something...">
-            <button class="add-new">Add New</button>
+        <header class="search-header">
+            <form method="POST" class="search-form live-search" onsubmit="return validateSearchForm();">
+                <input type="text" id="live_search" name="search_query" placeholder="Search jobs, applicants, offers..." autocomplete="off">
+                <button type="submit" name="search_submit"><i class="fas fa-search"></i></button>
+            </form>
+            <div id="live_search_results" class="search-results-box"></div>
         </header>
+
+
+        
+        
+        <button class="add-new">Add New</button>
+        
+        </header>
+        
+        <?php if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['search_submit'])): ?>
+            <section class="search-results">
+                <h4>Search Results</h4>
+                <?php if ($hasResults): ?>
+                    <div>
+                        <h5>Jobs</h5>
+                        <ul>
+                            <?php foreach ($searchResults['jobs'] as $job): ?>
+                                <li><a href="view_job.php?jobID=<?= $job['jobID'] ?>"><?= htmlspecialchars($job['jobTitle']) ?></a></li>
+                            <?php endforeach; ?>
+                        </ul>
+
+                        <h5>Applicants</h5>
+                        <ul>
+                            <?php foreach ($searchResults['applicants'] as $app): ?>
+                                <li><a href="view_jobseeker_profile.php?user_Id=<?= $app['user_Id'] ?>"><?= htmlspecialchars($app['fullName']) ?> — <?= $app['jobTitle'] ?></a></li>
+                            <?php endforeach; ?>
+                        </ul>
+
+                        <h5>Offers</h5>
+                        <ul>
+                            <?php foreach ($searchResults['offers'] as $offer): ?>
+                                <li><a href="offers_log.php?offerID=<?= $offer['offerID'] ?>"><?= $offer['jobTitle'] ?> — <?= $offer['offerStatus'] ?></a></li>
+                            <?php endforeach; ?>
+                        </ul>
+                    </div>
+                <?php else: ?>
+                    <p>No results found.</p>
+                <?php endif; ?>
+            </section>
+
+        <?php endif; ?>
+
         <div class="job-modal" id="jobModal">
+
             <div class="job-modal-content">
                 <span class="close-btn" id="closeJobModal">&times;</span>
                 <h3><i class="fas fa-briefcase"></i> Post a New Job</h3>
@@ -95,11 +217,19 @@ $employer = mysqli_fetch_assoc($result_employer);
                     <label for="jobTitle"><i class="fas fa-heading"></i> Job Title</label>
                     <input type="text" id="jobTitle" name="jobTitle" placeholder="e.g. Frontend Developer" required>
 
+                    <label for="categoryID"><i class="fas fa-list"></i> Category</label>
+                    <select name="categoryID" id="categoryID" required>
+                        <option value="">Select Category</option>
+                        <?php foreach ($categories as $category): ?>
+                            <option value="<?= $category['categoryID'] ?>"><?= htmlspecialchars($category['categoryName']) ?></option>
+                        <?php endforeach; ?>
+                    </select>
+
                     <label for="description"><i class="fas fa-align-left"></i> Job Description</label>
                     <textarea id="description" name="description" rows="4" placeholder="Describe the role in detail..." required></textarea>
 
                     <label for="salary"><i class="fas fa-dollar-sign"></i> Salary</label>
-                    <input type="text" id="salary" name="salary" placeholder="e.g. $60,000 - $80,000" pattern="^\$\d{1,3}(,\d{3})*(\s*-\s*\$\d{1,3}(,\d{3})*)?$" required>
+                    <input type="text" id="salary" name="salary" placeholder="e.g. 60,000 - 80,000" pattern="^\$\d{1,3}(,\d{3})*(\s*-\s*\$\d{1,3}(,\d{3})*)?$" required>
 
                     <label for="benefits"><i class="fas fa-gift"></i> Benefits</label>
                     <textarea id="benefits" name="benefits" rows="2" placeholder="e.g. Health insurance, Paid leave" required></textarea>
@@ -143,7 +273,7 @@ $employer = mysqli_fetch_assoc($result_employer);
         <section class="welcome">
             <h3>Good Morning <?php echo htmlspecialchars($employer['Emp_email']); ?></h3>
             <p>You have 75+ new applications. A lot of work for today!</p>
-            <button>Explore</button>
+            <button onclick="window.location.href='Employer_explore.php'">Explore</button>
         </section>
 
         <section class="hire-needs">
@@ -172,120 +302,43 @@ $employer = mysqli_fetch_assoc($result_employer);
                 <tbody>
                     <?php
                     $employerID = $_SESSION['employerID'];
-                    $query = "SELECT * FROM joblist WHERE employerID = '$employerID' ORDER BY posted_date DESC";
-                    $result = mysqli_query($conn, $query);
-                    if ($result && mysqli_num_rows($result) > 0) {
-                        while ($job = mysqli_fetch_assoc($result)) {
-                            echo "<tr>";
-                            echo "<td>" . htmlspecialchars($job['jobTitle']) . "</td>";
-                            echo "<td>" . htmlspecialchars($job['status']) . "</td>";
-                            echo "<td>" . htmlspecialchars(date('F j, Y', strtotime($job['posted_date']))) . "</td>";
-                            echo "<td>
-                                <a href='post_job.php?jobID=" . $job['jobID'] . "' class='btn update-btn'>Update</a>
-                                <form action='employer_dashboard.php' method='POST' style='display:inline;' onsubmit='return confirm(\"Are you sure you want to delete this job?\");'>
-                                    <input type='hidden' name='delete_jobID' value='" . $job['jobID'] . "'>
-                                    <button type='submit' name='delete_job' class='btn delete-btn'>Delete</button>
-                                </form>
-                            </td>";
-                            echo "</tr>";
+                    $query = "SELECT * FROM joblist WHERE employerID = ? ORDER BY posted_date DESC";
+                    if ($stmt = $conn->prepare($query)) {
+                        $stmt->bind_param("i", $employerID);
+                        $stmt->execute();
+                        $result = $stmt->get_result();
+                        if ($result && $result->num_rows > 0) {
+                            while ($job = $result->fetch_assoc()) {
+                                echo "<tr>";
+                                echo "<td>" . htmlspecialchars($job['jobTitle']) . "</td>";
+                                echo "<td>" . htmlspecialchars($job['status']) . "</td>";
+                                echo "<td>" . htmlspecialchars(date('F j, Y', strtotime($job['posted_date']))) . "</td>";
+                                echo "<td>
+                                    <a href='post_job.php?jobID=" . $job['jobID'] . "' class='btn update-btn'>Update</a>
+                                    <form action='employer_dashboard.php' method='POST' style='display:inline;' onsubmit='return confirm(\"Are you sure you want to delete this job?\");'>
+                                        <input type='hidden' name='delete_jobID' value='" . $job['jobID'] . "'>
+                                        <button type='submit' name='delete_job' class='btn delete-btn'>Delete</button>
+                                    </form>
+                                </td>";
+                                echo "</tr>";
+                            }
+                        } else {
+                            echo "<tr><td colspan='4'>No jobs posted yet.</td></tr>";
                         }
+                        $stmt->close();
                     } else {
-                        echo "<tr><td colspan='4'>No jobs posted yet.</td></tr>";
+                        echo "<tr><td colspan='4'>Failed to load jobs.</td></tr>";
                     }
                     ?>
                 </tbody>
             </table>
         </section>
-
-        <section class="recruitment-progress">
-            <h4>Recruitment Progress</h4>
-            <table>
-                <thead>
-                    <tr>
-                        <th>Full Name</th>
-                        <th>Description</th>
-                        <th>Status</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <?php
-                    $candidates = [
-                        ["John Doe", "UI/UX Designer", "Tech Interview"],
-                        ["Sam Emmanuel", "UI/UX Designer", "Resume Review"],
-                        ["John Samuel", "Content Developer", "Final Interview"]
-                    ];
-                    foreach ($candidates as $index => $c) {
-                        $class = $index === 1 ? 'class="highlight"' : '';
-                        echo "<tr $class><td>{$c[0]}</td><td>{$c[1]}</td><td>{$c[2]}</td></tr>";
-                    }
-                    ?>
-                </tbody>
-            </table>
-        </section>
-    </div>
-
-    <div class="sidebar-right">
-        <div class="profile">
-            <p><?php echo htmlspecialchars($employer['Emp_email']); ?></p>
-        </div>
-        <div class="calendar">
-            <h4>Schedule Calendar</h4>
-            <div class="dates">
-                <?php foreach ([24, 25, 26, 27, 28] as $day) echo "<span>$day</span>"; ?>
-            </div>
-        </div>
-
-        <div class="new-applicants p-4 bg-white shadow rounded">
-    <h4 class="mb-4">New Applicants</h4>
-    <ul class="list-group list-group-flush">
-        <?php
-        $employerID = $_SESSION['employerID'];
-        $query = "SELECT a.applicationID, u.fullName, j.jobTitle, a.applicationDate 
-                  FROM jobapplications a
-                  JOIN joblist j ON a.jobID = j.jobID
-                  JOIN jobseeker_profiles u ON a.user_Id = u.user_Id
-                  WHERE j.employerID = ? 
-                  ORDER BY a.applicationDate DESC
-                  LIMIT 5";
-        $stmt = $conn->prepare($query);
-        $stmt->bind_param("i", $employerID);
-        $stmt->execute();
-        $result = $stmt->get_result();
-        if ($result && $result->num_rows > 0) {
-            while ($row = $result->fetch_assoc()) {
-                echo "<li class='list-group-item d-flex justify-content-between align-items-start'>";
-                echo "<div class='ms-2 me-auto'>";
-                echo "<div class='fw-bold'>" . htmlspecialchars($row['fullName']) . "</div>";
-                echo "Applied for <strong>" . htmlspecialchars($row['jobTitle']) . "</strong> on " . date('M j, Y', strtotime($row['applicationDate']));
-                echo "</div>";
-                echo "<a href='application_review.php?applicationID=" . urlencode($row['applicationID']) . "' class='btn btn-outline-primary btn-sm'>Review</a>";
-                echo "</li>";
-            }
-        } else {
-            echo "<li class='list-group-item'>No new applications</li>";
-        }
-        $stmt->close();
-        ?>
-    </ul>
-</div>
-
-
-        <div class="training">
-            <h4>Ready For Training</h4>
-            <div class="trainees">
-                <?php
-                $trainees = ["Alex", "Sam", "Maria"];
-                foreach ($trainees as $trainee) echo "<div>$trainee</div>";
-                ?>
-            </div>
-        </div>
-    </div>
 
     <script src="script.js"></script>
     <script src="../For_design/jv/dashboard.js"></script>
     <script>
         // Check if URL has openPostJob=1 to open the post job modal automatically
-        document.addEventListener('DOMContentLoaded', function () {
+        document.addEventListener('DOMContentLoaded', function() {
             const urlParams = new URLSearchParams(window.location.search);
             if (urlParams.get('openPostJob') === '1') {
                 const jobModal = document.getElementById('jobModal');
@@ -300,7 +353,7 @@ $employer = mysqli_fetch_assoc($result_employer);
         const closeBtn = document.getElementById('closeJobModal');
         const jobModal = document.getElementById('jobModal');
         if (closeBtn && jobModal) {
-            closeBtn.addEventListener('click', function () {
+            closeBtn.addEventListener('click', function() {
                 jobModal.style.display = 'none';
                 // Remove the query parameter from URL without reloading
                 if (window.history.replaceState) {
@@ -310,7 +363,50 @@ $employer = mysqli_fetch_assoc($result_employer);
                 }
             });
         }
-    </script>
+
+        function validateSearchForm() {
+            var searchInput = document.getElementById('live_search').value.trim();
+            if (searchInput === '') {
+                alert('Please fill the search bar before submitting.');
+                return false;
+            }
+            return true;
+        }
+
+            document.addEventListener('DOMContentLoaded', function() {
+                const liveSearchInput = document.getElementById('live_search');
+                const resultsBox = document.getElementById('live_search_results');
+
+                liveSearchInput.addEventListener('input', function() {
+                    const query = this.value.trim();
+                    if (query.length === 0) {
+                        resultsBox.innerHTML = '';
+                        resultsBox.style.display = 'none';
+                        return;
+                    }
+
+                    fetch(`live_search_handler.php?q=${encodeURIComponent(query)}`)
+                        .then(response => response.text())
+                        .then(data => {
+                            resultsBox.innerHTML = data;
+                            resultsBox.style.display = 'block';
+                        })
+                        .catch(error => {
+                            console.error('Error fetching live search results:', error);
+                            resultsBox.innerHTML = '<li>Error loading results.</li>';
+                            resultsBox.style.display = 'block';
+                        });
+                });
+                
+
+                // Optional: Hide results when clicking outside
+                document.addEventListener('click', function(event) {
+                    if (!resultsBox.contains(event.target) && event.target !== liveSearchInput) {
+                        resultsBox.style.display = 'none';
+                    }
+                });
+            });
+        </script>
 </body>
 
 </html>

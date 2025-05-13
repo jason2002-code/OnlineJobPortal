@@ -2,12 +2,13 @@
 session_start();
 include("../Functions/db_connection.php");
 
-if (!isset($_SESSION['employerID'])) {
+if (!isset($_SESSION['employerID']) && !isset($_SESSION['admin'])) {
     header("Location: login.php");
     exit;
 }
 
-$employerID = $_SESSION['employerID'];
+$isAdmin = isset($_SESSION['admin']);
+$employerID = $isAdmin ? null : $_SESSION['employerID'];
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $applicationID = intval($_POST['applicationID']);
@@ -19,10 +20,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!in_array($decision, $valid_decisions)) {
         $error = "Invalid decision selected.";
     } else {
+        if ($isAdmin) {
+            // For admin, find employerID from application_review or jobapplications
+            $getEmployerSql = "SELECT employerID FROM joblist j JOIN jobapplications ja ON j.jobID = ja.jobID WHERE ja.applicationID = ?";
+            $getEmployerStmt = $conn->prepare($getEmployerSql);
+            $getEmployerStmt->bind_param("i", $applicationID);
+            $getEmployerStmt->execute();
+            $getEmployerStmt->bind_result($employerIDFromApp);
+            $getEmployerStmt->fetch();
+            $getEmployerStmt->close();
+            $employerIDToUse = $employerIDFromApp;
+        } else {
+            $employerIDToUse = $employerID;
+        }
+
         // Check if review exists
         $checkSql = "SELECT reviewID FROM application_review WHERE applicationID = ? AND employerID = ?";
         $stmt = $conn->prepare($checkSql);
-        $stmt->bind_param("ii", $applicationID, $employerID);
+        $stmt->bind_param("ii", $applicationID, $employerIDToUse);
         $stmt->execute();
         $stmt->store_result();
 
@@ -51,7 +66,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $stmt->close();
             $insertSql = "INSERT INTO application_review (applicationID, employerID, decision, feedback, reviewDate) VALUES (?, ?, ?, ?, NOW())";
             $insertStmt = $conn->prepare($insertSql);
-            $insertStmt->bind_param("iiss", $applicationID, $employerID, $decision, $feedback);
+            $insertStmt->bind_param("iiss", $applicationID, $employerIDToUse, $decision, $feedback);
             $insertStmt->execute();
             $insertStmt->close();
 
@@ -69,26 +84,52 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 $showAccepted = isset($_GET['showAccepted']) && $_GET['showAccepted'] == 1;
 
-// Fetch applications for this employer's jobs
+// Fetch applications for this employer's jobs or all if admin
 if ($showAccepted) {
-    // Only accepted jobseekers
-    $sql = "SELECT ja.applicationID, ja.applicationDate, ja.Status1, ja.user_Id, js.fullName AS jobseekerName, j.jobTitle
-            FROM jobapplications ja
-            JOIN joblist j ON ja.jobID = j.jobID
-            JOIN jobseeker_profiles js ON ja.user_Id = js.user_Id
-            WHERE j.employerID = ? AND ja.Status1 = 'accepted'
-            ORDER BY ja.applicationDate DESC";
+    if ($isAdmin) {
+        // Only accepted jobseekers for admin
+        $sql = "SELECT ja.applicationID, ja.applicationDate, ja.Status1, ja.user_Id, js.fullName AS jobseekerName, j.jobTitle, e.companyName
+                FROM jobapplications ja
+                JOIN joblist j ON ja.jobID = j.jobID
+                JOIN jobseeker_profiles js ON ja.user_Id = js.user_Id
+                JOIN employers e ON j.employerID = e.employerID
+                WHERE ja.Status1 = 'accepted'
+                ORDER BY ja.applicationDate DESC";
+        $stmt = $conn->prepare($sql);
+    } else {
+        // Only accepted jobseekers for employer
+        $sql = "SELECT ja.applicationID, ja.applicationDate, ja.Status1, ja.user_Id, js.fullName AS jobseekerName, j.jobTitle
+                FROM jobapplications ja
+                JOIN joblist j ON ja.jobID = j.jobID
+                JOIN jobseeker_profiles js ON ja.user_Id = js.user_Id
+                WHERE j.employerID = ? AND ja.Status1 = 'accepted'
+                ORDER BY ja.applicationDate DESC";
+        $stmt = $conn->prepare($sql);
+        $stmt->bind_param("i", $employerID);
+    }
 } else {
-    $sql = "SELECT ja.applicationID, ja.applicationDate, ja.Status1, ja.user_Id, js.fullName AS jobseekerName, j.jobTitle
-            FROM jobapplications ja
-            JOIN joblist j ON ja.jobID = j.jobID
-            JOIN jobseeker_profiles js ON ja.user_Id = js.user_Id
-            WHERE j.employerID = ?
-            ORDER BY ja.applicationDate DESC";
+    if ($isAdmin) {
+        // All applications for admin
+        $sql = "SELECT ja.applicationID, ja.applicationDate, ja.Status1, ja.user_Id, js.fullName AS jobseekerName, j.jobTitle, e.companyName
+                FROM jobapplications ja
+                JOIN joblist j ON ja.jobID = j.jobID
+                JOIN jobseeker_profiles js ON ja.user_Id = js.user_Id
+                JOIN employers e ON j.employerID = e.employerID
+                ORDER BY ja.applicationDate DESC";
+        $stmt = $conn->prepare($sql);
+    } else {
+        // All applications for employer
+        $sql = "SELECT ja.applicationID, ja.applicationDate, ja.Status1, ja.user_Id, js.fullName AS jobseekerName, j.jobTitle
+                FROM jobapplications ja
+                JOIN joblist j ON ja.jobID = j.jobID
+                JOIN jobseeker_profiles js ON ja.user_Id = js.user_Id
+                WHERE j.employerID = ?
+                ORDER BY ja.applicationDate DESC";
+        $stmt = $conn->prepare($sql);
+        $stmt->bind_param("i", $employerID);
+    }
 }
 
-$stmt = $conn->prepare($sql);
-$stmt->bind_param("i", $employerID);
 $stmt->execute();
 $result = $stmt->get_result();
 
@@ -104,10 +145,18 @@ $reviews = [];
 if (count($applicationIDs) > 0) {
     $placeholders = implode(',', array_fill(0, count($applicationIDs), '?'));
     $types = str_repeat('i', count($applicationIDs));
-    $sqlReviews = "SELECT * FROM application_review WHERE applicationID IN ($placeholders) AND employerID = ?";
-    $stmt = $conn->prepare($sqlReviews);
-    $params = array_merge($applicationIDs, [$employerID]);
-    $stmt->bind_param($types . 'i', ...$params);
+    if ($isAdmin) {
+        // Admin can see all reviews for these applications
+        $sqlReviews = "SELECT * FROM application_review WHERE applicationID IN ($placeholders)";
+        $stmt = $conn->prepare($sqlReviews);
+        $stmt->bind_param($types, ...$applicationIDs);
+    } else {
+        // Employer sees only their reviews
+        $sqlReviews = "SELECT * FROM application_review WHERE applicationID IN ($placeholders) AND employerID = ?";
+        $stmt = $conn->prepare($sqlReviews);
+        $params = array_merge($applicationIDs, [$employerID]);
+        $stmt->bind_param($types . 'i', ...$params);
+    }
     $stmt->execute();
     $res = $stmt->get_result();
     while ($row = $res->fetch_assoc()) {
@@ -136,26 +185,7 @@ if (count($applicationIDs) > 0) {
         </button>
         <div class="collapse navbar-collapse" id="navbarNav">
             <ul class="navbar-nav ms-auto">
-                <li class="nav-item position-relative">
-                    <a class="nav-link" href="#"><i class="fas fa-bell me-1"></i><span class="notification-badge">3</span></a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" href="employer_dashboard.php"><i class="fas fa-user me-1"></i>Dashboard</a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link active" href="application_review.php"><i class="fas fa-file-alt me-1"></i>Application Review</a>
-                </li>
-                <li class="nav-item dropdown">
-                    <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                        <i class="fas fa-cog me-1"></i>Settings
-                    </a>
-                    <ul class="dropdown-menu" aria-labelledby="navbarDropdown">
-                        <li><a class="dropdown-item" href="#">Account Settings</a></li>
-                        <li><a class="dropdown-item" href="#">Privacy</a></li>
-                        <li><hr class="dropdown-divider"></li>
-                        <li><a class="dropdown-item" href="logout.php">Logout</a></li>
-                    </ul>
-                </li>
+                <!-- Buttons removed as per request -->
             </ul>
         </div>
     </div>
@@ -175,14 +205,17 @@ if (count($applicationIDs) > 0) {
         <table class="table table-bordered table-hover">
             <thead>
                 <tr>
-                    <th>Application ID</th>
-                    <th>Job Title</th>
-                    <th>Jobseeker</th>
-                    <th>Applied On</th>
-                    <th>Status</th>
-                    <th>Feedback</th>
-                    <th>Review Date</th>
-                    <th>Action</th>
+    <th>Application ID</th>
+    <?php if ($isAdmin): ?>
+    <th>Employer</th>
+    <?php endif; ?>
+    <th>Job Title</th>
+    <th>Jobseeker</th>
+    <th>Applied On</th>
+    <th>Status</th>
+    <th>Feedback</th>
+    <th>Review Date</th>
+    <th>Action</th>
                 </tr>
             </thead>
             <tbody>
@@ -192,6 +225,9 @@ if (count($applicationIDs) > 0) {
                 ?>
                 <tr>
                     <td><?php echo htmlspecialchars($app['applicationID']); ?></td>
+                    <?php if ($isAdmin): ?>
+                    <td><?php echo htmlspecialchars($app['companyName']); ?></td>
+                    <?php endif; ?>
                     <td><?php echo htmlspecialchars($app['jobTitle']); ?></td>
                     <td><?php echo htmlspecialchars($app['jobseekerName']); ?></td>
                     <td><?php echo date('M j, Y', strtotime($app['applicationDate'])); ?></td>
@@ -212,6 +248,7 @@ if (count($applicationIDs) > 0) {
             </tbody>
         </table>
     <?php endif; ?>
+       <a href="employer_dashboard.php" class="btn btn-secondary mt-3">Back to Dashboard</a>
 </div>
 
 <!-- Review Modal -->
