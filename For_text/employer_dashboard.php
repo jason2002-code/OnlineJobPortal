@@ -113,7 +113,7 @@ if ($stmt = $conn->prepare($notifQuery)) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Employer Dashboard</title>
-    <link rel="stylesheet" href="../For_design/employer_dashboard.css ">
+    <link rel="stylesheet" href="../For_design/New_employer_dash.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 </head>
@@ -270,11 +270,24 @@ if ($stmt = $conn->prepare($notifQuery)) {
             </div>
         </div>
 
-        <section class="welcome">
-            <h3>Good Morning <?php echo htmlspecialchars($employer['Emp_email']); ?></h3>
-            <p>You have 75+ new applications. A lot of work for today!</p>
-            <button onclick="window.location.href='Employer_explore.php'">Explore</button>
-        </section>
+<?php
+// Count new applications for the logged-in employer
+$newApplicationsCount = 0;
+$employerID = $_SESSION['employerID'];
+$queryNewApps = "SELECT COUNT(*) FROM jobapplications a JOIN joblist j ON a.jobID = j.jobID WHERE j.employerID = ? AND (a.Status1 IS NULL OR a.Status1 NOT IN ('accepted', 'rejected'))";
+if ($stmtNewApps = $conn->prepare($queryNewApps)) {
+    $stmtNewApps->bind_param("i", $employerID);
+    $stmtNewApps->execute();
+    $stmtNewApps->bind_result($newApplicationsCount);
+    $stmtNewApps->fetch();
+    $stmtNewApps->close();
+}
+?>
+<section class="welcome">
+    <h3>Good Morning <?php echo htmlspecialchars($employer['Emp_email']); ?></h3>
+    <p>You have <?php echo $newApplicationsCount > 0 ? $newApplicationsCount : 'no'; ?> new application<?php echo $newApplicationsCount == 1 ? '' : 's'; ?>. A lot of work for today!</p>
+    <button onclick="window.location.href='Employer_explore.php'">Explore</button>
+</section>
 
         <section class="hire-needs">
             <h4>You Need to hire</h4>

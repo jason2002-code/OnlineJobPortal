@@ -43,43 +43,29 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     animation: gradientBG 10s ease infinite;
     font-family: 'Poppins', sans-serif;
 }
-.navbar-nav .nav-link {
-    color: #0c0c0c !important;
-    transition: background-color 0.3s ease;
-    border-radius: 4px;
-    padding: 8px 12px;
-}
+  .navbar-brand {
+            font-weight: 600;
+            color: #fff !important;
+        }
 
-.navbar-nav .nav-link:hover {
-    background-color: rgba(78, 115, 223, 0.8);
-    color: #f8f5f5 !important;
-}
+        .navbar-nav .nav-link {
+            color: #fff !important;
+            padding: 8px 14px;
+            font-weight: 500;
+            border-radius: 6px;
+            transition: all 0.3s ease;
+        }
 
-.navbar .nav-link {
-    color: #fff !important;
-    font-weight: 500;
-}
+        .navbar-nav .nav-link:hover {
+            background-color: rgba(255, 255, 255, 0.15);
+        }
 
-.navbar .nav-link:hover {
-    text-decoration: underline;
-}
-
-.navbar-brand {
-    font-weight: 600;
-}
-
-
-/* Responsive adjustments */
-@media (max-width: 768px) {
-    .navbar-nav {
-        flex-direction: column;
-        width: 100%;
-    }
-    .navbar-nav .nav-link {
-        padding: 10px;
-        text-align: center;
-    }
-}
+        @media (max-width: 768px) {
+            .navbar-nav {
+                flex-direction: column;
+                text-align: center;
+            }
+        }
 
 @keyframes gradientBG {
     0% { background-position: 0% 50%; }
@@ -114,7 +100,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     </style>
 </head>
 <body>
-    <nav class="navbar navbar-expand-lg navbar-light" style="background-color: #f8f9fa;">
+    
+<nav class="navbar navbar-expand-lg navbar-light" style="background-color: rgba(78, 115, 223, 0.95);">
         <div class="container-fluid">
             <a class="navbar-brand" href="admin_dashboard.php"><i class="fas fa-user-shield me-2"></i>Admin Panel</a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#adminNavbar">

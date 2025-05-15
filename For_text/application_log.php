@@ -64,6 +64,29 @@ $appResult = $conn->query($appQuery);
         button[type="submit"] {
             width: 100%;
         }
+          .navbar-brand {
+            font-weight: 600;
+            color: #fff !important;
+        }
+
+        .navbar-nav .nav-link {
+            color: #fff !important;
+            padding: 8px 14px;
+            font-weight: 500;
+            border-radius: 6px;
+            transition: all 0.3s ease;
+        }
+
+        .navbar-nav .nav-link:hover {
+            background-color: rgba(255, 255, 255, 0.15);
+        }
+
+        @media (max-width: 768px) {
+            .navbar-nav {
+                flex-direction: column;
+                text-align: center;
+            }
+        }
     </style>
 </head>
 <body>

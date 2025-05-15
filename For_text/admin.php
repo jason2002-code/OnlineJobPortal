@@ -42,9 +42,15 @@ $employerResult = $conn->query($employerQuery);
 
 // Get recent notifications for admin with sender info (employer companyName or jobseeker email)
 $notifQuery = "SELECT n.notificationID, n.message, n.isRead, n.dateSent,
-               'Anonymous' AS senderName,
-               'Anonymous' AS senderType
+               COALESCE(e.companyName, j.User_email) AS senderName,
+               CASE
+                   WHEN e.employerID IS NOT NULL THEN 'Employer'
+                   WHEN j.user_ID IS NOT NULL THEN 'Jobseeker'
+                   ELSE 'Anonymous'
+               END AS senderType
                FROM notifications n
+               LEFT JOIN employers e ON n.user_Id = e.employerID AND n.receiverRole = 'employer'
+               LEFT JOIN jobseekers j ON n.user_Id = j.user_ID AND n.receiverRole = 'jobseeker'
                WHERE n.receiverRole = 'admin' OR n.receiverRole = 'all'
                ORDER BY n.dateSent DESC
                LIMIT 5";

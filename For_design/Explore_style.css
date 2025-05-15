@@ -94,6 +94,36 @@ canvas {
     height: auto;
 }
 
+table {
+    width: 100%;
+    margin-top: 2rem;
+    border-collapse: collapse;
+    background: #fff;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+thead {
+    background-color: #4361EE;
+    color: white;
+}
+
+th, td {
+    padding: 1rem;
+    text-align: left;
+    border-bottom: 1px solid #eee;
+}
+
+tr:hover {
+    background-color: #f5f5f5;
+}
+
+.chart-container {
+    margin-bottom: 2rem;
+}
+
+
 
 @media (max-width: 768px) {
     .stats {
